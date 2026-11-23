@@ -217,6 +217,9 @@ class RoomManager {
   }
 
   handleDisconnect(socket) {
+    // Remove from matchmaking queue
+    this.removeFromQueue(socket);
+
     for (const [roomId, room] of this.rooms) {
       if (room.sockets.has(socket.id)) {
         const otherPlayers = Array.from(room.sockets.values()).filter(
@@ -285,6 +288,12 @@ class RoomManager {
 
       // Notify host (player1)
       player1.socket.emit('room-created', { roomCode, roomId });
+
+      // Notify host that the second player has joined
+      player1.socket.emit('player-joined', { 
+        player: player2.name, 
+        isHost: true 
+      });
 
       // Notify joiner (player2) - now with real opponent name
       player2.socket.emit('joined-room', { roomCode, roomId, opponentName: player1.name });
