@@ -1,22 +1,31 @@
+/* ===== 基本レイアウト - フルスクリーン対応 ===== */
 .game-board {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: 100%;
+  padding: clamp(0.5rem, 2vw, 1rem);
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
+/* ===== ヘッダー ===== */
 .board-header {
   text-align: center;
-  margin-bottom: 1rem;
+  margin-bottom: clamp(0.5rem, 1vh, 1rem);
+  flex-shrink: 0;
 }
 
 .notification {
   background: var(--primary-color);
   color: white;
-  padding: 0.75rem 1rem;
+  padding: clamp(0.5rem, 1.5vw, 0.75rem) clamp(0.75rem, 2vw, 1rem);
   border-radius: 8px;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   position: relative;
   cursor: pointer;
+  font-size: clamp(0.85rem, 2vw, 1rem);
 }
 
 .close-btn {
@@ -27,8 +36,9 @@
   background: none;
   border: none;
   color: white;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
   cursor: pointer;
+  padding: 0.25rem;
 }
 
 .mode-info {
@@ -39,7 +49,7 @@
   display: inline-block;
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
-  font-size: 0.85rem;
+  font-size: clamp(0.75rem, 1.8vw, 0.85rem);
   background: var(--bg-tertiary);
 }
 
@@ -53,19 +63,21 @@
   color: #2e7d32;
 }
 
+/* ===== スコア表示 ===== */
 .score-display {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1rem;
+  gap: clamp(0.5rem, 2vw, 1rem);
   margin-bottom: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .player-score {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  gap: clamp(0.25rem, 1vw, 0.5rem);
+  padding: clamp(0.35rem, 1vw, 0.5rem) clamp(0.5rem, 2vw, 1rem);
   border-radius: 8px;
   transition: background 0.2s;
 }
@@ -75,10 +87,11 @@
 }
 
 .stone-icon {
-  width: 24px;
-  height: 24px;
+  width: clamp(20px, 3vw, 24px);
+  height: clamp(20px, 3vw, 24px);
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
 }
 
 .stone-icon.black {
@@ -97,7 +110,7 @@
 }
 
 .count {
-  font-size: 1.5rem;
+  font-size: clamp(1.2rem, 3vw, 1.5rem);
   font-weight: bold;
   color: var(--text-primary);
 }
@@ -105,16 +118,18 @@
 .vs {
   font-weight: bold;
   color: var(--text-secondary);
+  font-size: clamp(0.9rem, 2vw, 1rem);
 }
 
 .player-name {
-  font-size: 0.75rem;
+  font-size: clamp(0.65rem, 1.5vw, 0.75rem);
   color: var(--text-secondary);
 }
 
+/* ===== ターンインジケーター ===== */
 .turn-indicator {
-  padding: 0.5rem;
-  font-size: 1rem;
+  padding: clamp(0.35rem, 1vh, 0.5rem);
+  font-size: clamp(0.9rem, 2vw, 1rem);
   color: var(--text-secondary);
   display: flex;
   align-items: center;
@@ -127,6 +142,7 @@
   height: 12px;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
 }
 
 .turn-dot.black {
@@ -140,55 +156,49 @@
 }
 
 .game-over {
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
   font-weight: bold;
   color: var(--primary-color);
 }
 
-/* Board */
+/* ===== 盤エリア - 重要 ===== */
 .board-container {
-  position: relative;
-  margin: 0 auto;
-}
-
-.pass-btn {
-  display: block;
-  margin: 0 auto 1rem;
-  padding: 0.75rem 2rem;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  cursor: pointer;
-}
-
-.pass-btn:hover {
-  opacity: 0.9;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  min-height: 0;
+  padding: clamp(0.25rem, 1vh, 0.5rem);
 }
 
 .board {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  gap: 2px;
+  gap: 1px;
   background: #3e2723;
-  border: 4px solid #5d4037;
-  border-radius: 8px;
-  padding: 4px;
+  border: 2px solid #5d4037;
+  border-radius: 4px;
+  padding: 2px;
   margin: 0 auto;
-  aspect-ratio: 1;
-  max-width: 560px;
+  width: min(95vw, 95vh - 180px, 600px);
+  height: min(95vw, 95vh - 180px, 600px);
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  box-sizing: content-box;
+  flex-shrink: 0;
 }
 
 .cell {
   position: relative;
   background: #2e7d32;
-  border-radius: 2px;
+  border-radius: 1px;
   cursor: default;
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 1;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .cell.valid-move {
@@ -200,8 +210,8 @@
 }
 
 .move-hint {
-  width: 30%;
-  height: 30%;
+  width: 25%;
+  height: 25%;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
   pointer-events: none;
@@ -232,14 +242,14 @@
 .last-move::after {
   content: '';
   position: absolute;
-  width: 30%;
-  height: 30%;
+  width: 25%;
+  height: 25%;
   border-radius: 50%;
   background: #ff5252;
   z-index: 1;
 }
 
-/* Game over overlay */
+/* ===== ゲーム終了オーバーレイ ===== */
 .game-over-overlay {
   position: fixed;
   top: 0;
@@ -251,28 +261,31 @@
   align-items: center;
   justify-content: center;
   z-index: 100;
+  padding: 1rem;
 }
 
 .game-over-card {
   background: var(--bg-primary);
-  padding: 2rem;
+  padding: clamp(1.5rem, 4vw, 2rem);
   border-radius: 16px;
   text-align: center;
-  max-width: 400px;
-  width: 90%;
+  max-width: min(90vw, 400px);
+  width: 100%;
 }
 
 .game-over-card h2 {
   margin-bottom: 1rem;
+  font-size: clamp(1.2rem, 3vw, 1.5rem);
 }
 
 .final-score {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
   margin: 1.5rem 0;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
+  flex-wrap: wrap;
 }
 
 .final-player {
@@ -284,34 +297,37 @@
 .win-text {
   color: var(--primary-color);
   font-weight: bold;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
 }
 
 .lose-text {
   color: #e53935;
   font-weight: bold;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
 }
 
 .draw-text {
   color: var(--text-secondary);
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
 }
 
 .game-over-actions {
   margin-top: 1.5rem;
 }
 
+/* ===== フッター ===== */
 .board-footer {
   text-align: center;
-  margin-top: 1rem;
+  margin-top: clamp(0.5rem, 1vh, 1rem);
+  flex-shrink: 0;
 }
 
+/* ===== ボタン共通 ===== */
 .btn {
-  padding: 0.75rem 1.5rem;
+  padding: clamp(0.6rem, 1.5vw, 0.75rem) clamp(1rem, 2.5vw, 1.5rem);
   border: none;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: clamp(0.9rem, 2vw, 1rem);
   cursor: pointer;
   transition: opacity 0.1s;
 }
@@ -328,4 +344,111 @@
 .btn-secondary {
   background: var(--bg-tertiary);
   color: var(--text-primary);
+}
+
+/* ===== モバイル対応（縦持ち） ===== */
+@media (max-width: 480px) and (orientation: portrait) {
+  .game-board {
+    padding: 0.5rem;
+  }
+  
+  .board {
+    width: min(96vw, calc(100vh - 220px));
+    height: min(96vw, calc(100vh - 220px));
+  }
+  
+  .score-display {
+    gap: 0.5rem;
+  }
+  
+  .player-score {
+    padding: 0.25rem 0.5rem;
+  }
+}
+
+/* ===== タブレット対応 ===== */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .board {
+    width: min(85vw, calc(100vh - 200px), 500px);
+    height: min(85vw, calc(100vh - 200px), 500px);
+  }
+}
+
+/* ===== デスクトップ対応 ===== */
+@media (min-width: 1024px) {
+  .board {
+    width: min(600px, 80vw, calc(100vh - 180px));
+    height: min(600px, 80vw, calc(100vh - 180px));
+  }
+}
+
+/* ===== 横持ちタブレット/スマホ ===== */
+@media (orientation: landscape) and (max-height: 600px) {
+  .game-board {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+  }
+  
+  .board-header {
+    margin-bottom: 0;
+    text-align: left;
+    max-width: 200px;
+  }
+  
+  .score-display {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .board {
+    width: min(60vh, 70vw);
+    height: min(60vh, 70vw);
+  }
+}
+
+/* ===== 小さな画面（旧スマホなど） ===== */
+@media (max-width: 360px) {
+  .board {
+    width: 98vw;
+    height: 98vw;
+    max-height: calc(100vh - 200px);
+  }
+  
+  .count {
+    font-size: 1rem;
+  }
+  
+  .player-name {
+    display: none;
+  }
+}
+
+/* ===== 大きな画面（4Kなど） ===== */
+@media (min-width: 2560px) {
+  .board {
+    width: min(800px, 70vw);
+    height: min(800px, 70vw);
+  }
+  
+  .count {
+    font-size: 2rem;
+  }
+}
+
+/* ===== カラースキーム強制（変形防止） ===== */
+@media (prefers-color-scheme: dark) {
+  .game-board {
+    background: var(--bg-primary);
+  }
+}
+
+/* ===== 安全領域対応（iPhone X+など） ===== */
+@supports (padding: max(0px)) {
+  .game-board {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
 }

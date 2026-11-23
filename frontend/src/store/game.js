@@ -40,13 +40,16 @@ const useGameStore = create((set, get) => ({
   setWaitingForOpponent: (val) => set({ waitingForOpponent: val }),
 
   startAIGame: (difficulty, color = BLACK) => {
-    set({ 
+    set({
       mode: 'ai',
       game: cloneGame(createGame()),
       difficulty,
       myColor: color,
       showMenu: false,
       notification: null,
+      waitingForOpponent: false,
+      roomId: null,
+      roomCode: null,
     });
 
     if (color === WHITE) {
@@ -56,7 +59,7 @@ const useGameStore = create((set, get) => ({
 
   startMultiplayerCreate: (playerName) => {
     const socket = getSocket();
-    set({ 
+    set({
       mode: 'multiplayer',
       playerName,
       isHost: true,
@@ -68,7 +71,7 @@ const useGameStore = create((set, get) => ({
 
   joinMultiplayer: (roomCode, playerName) => {
     const socket = getSocket();
-    set({ 
+    set({
       mode: 'multiplayer',
       playerName,
       roomCode,
@@ -83,12 +86,14 @@ const useGameStore = create((set, get) => ({
     const socket = getSocket();
     // Store player name in socket data for matchmaking
     socket.data = { playerName };
-    set({ 
+    set({
       mode: 'multiplayer',
       playerName,
       isHost: false,
       waitingForOpponent: true,
       showMenu: false,
+      roomId: null,
+      roomCode: null,
     });
     socket.emit('find-opponent', { playerName });
   },
@@ -106,7 +111,7 @@ const useGameStore = create((set, get) => ({
       if (game.currentPlayer !== myColor) return;
       const isValid = game.validMoves.some(m => m.row === row && m.col === col);
       if (!isValid) return;
-      
+
       const newGame = applyMove(game, { row, col });
       set({ game: cloneGame(newGame), notification: null });
 
@@ -115,8 +120,8 @@ const useGameStore = create((set, get) => ({
       }
     } else if (mode === 'multiplayer') {
       const socket = getSocket();
-      socket.emit('place-stone', { 
-        roomId: get().roomId, 
+      socket.emit('place-stone', {
+        roomId: get().roomId,
         move: { row, col }
       });
     }
@@ -126,7 +131,7 @@ const useGameStore = create((set, get) => ({
     clearSocketHandlers();
     const socket = getSocket();
     socket.emit('leave-room');
-    set({ 
+    set({
       mode: 'menu',
       game: null,
       roomId: null,
@@ -142,7 +147,7 @@ const useGameStore = create((set, get) => ({
   setSocketHandlers: (handlers) => {
     // Clear previous listeners first to prevent duplicates
     clearSocketHandlers();
-    
+
     if (handlers.onRoomCreated) registerListener('room-created', handlers.onRoomCreated);
     if (handlers.onJoinedRoom) registerListener('joined-room', handlers.onJoinedRoom);
     if (handlers.onPlayerJoined) registerListener('player-joined', handlers.onPlayerJoined);
@@ -168,11 +173,11 @@ function aiMove() {
   if (game.currentPlayer !== aiColor) return;
 
   const move = getAIMove(game, aiColor, difficulty);
-  
+
   if (move) {
     const newGame = applyMove(game, move);
     useGameStore.setState({ game: cloneGame(newGame), notification: null });
-    
+
     // If AI played and now it's again the AI's turn (auto-pass by opponent), keep going
     if (newGame.currentPlayer === aiColor && !newGame.gameOver) {
       setTimeout(() => aiMove(), 300);

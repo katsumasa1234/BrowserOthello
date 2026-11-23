@@ -7,32 +7,44 @@ import './styles/index.css';
 const store = useGameStore;
 
 function App() {
-  const { 
-    mode, game, setSocketHandlers, playerName, 
+  const {
+    mode, game, setSocketHandlers, playerName,
     setRoomCode, leaveGame, roomCode, waitingForOpponent
   } = useGameStore();
 
   const handleRoomCreated = useCallback((data) => {
+    console.log('Room created:', data);
     setRoomCode(data.roomCode);
-    store.setState({ roomId: data.roomId });
-    window.location.hash = `room/${data.roomCode}`;
+    store.setState({
+      roomId: data.roomId,
+      roomCode: data.roomCode,
+      waitingForOpponent: true,
+    });
   }, [setRoomCode]);
 
   const handleJoinedRoom = useCallback((data) => {
-    store.setState({ 
+    console.log('Joined room:', data);
+    store.setState({
       roomId: data.roomId,
+      roomCode: data.roomCode,
       opponentName: data.opponentName,
-      waitingForOpponent: true 
+      waitingForOpponent: true,
     });
   }, []);
 
+  const handlePlayerJoined = useCallback((data) => {
+    console.log('Player joined:', data);
+    // Host notified that a player joined - can auto-start or wait for accept
+  }, []);
+
   const handleGameStart = useCallback((data) => {
-    store.setState({ 
-      game: data.game, 
+    console.log('Game start:', data);
+    store.setState({
+      game: data.game,
       myColor: data.myColor,
       opponentName: data.opponentName,
       roomId: data.roomId,
-      waitingForOpponent: false 
+      waitingForOpponent: false,
     });
   }, []);
 
@@ -45,20 +57,27 @@ function App() {
   }, []);
 
   const handleGameEnd = useCallback((data) => {
-    store.setState({ 
+    console.log('Game end:', data);
+    store.setState({
       game: data.game,
-      _endReason: data.reason || null,
-      _winnerName: data.winnerName || null,
+      waitingForOpponent: false,
     });
   }, []);
 
   const handleError = useCallback((data) => {
-    alert(data.message);
+    console.error('Error:', data);
+    alert(data.message || 'エラーが発生しました');
   }, []);
 
-  const handlePlayerJoined = useCallback(() => {}, []);
-  const handleOpponentLeft = useCallback(() => {}, []);
-  const handleHostDisconnected = useCallback(() => {}, []);
+  const handlePlayerLeft = useCallback((data) => {
+    console.log('Player left:', data);
+    store.setState({ waitingForOpponent: false });
+  }, []);
+
+  const handleHostDisconnected = useCallback(() => {
+    alert('ホストが切断されました');
+    store.setState({ waitingForOpponent: false, mode: 'menu' });
+  }, []);
 
   useEffect(() => {
     setSocketHandlers({
@@ -70,7 +89,7 @@ function App() {
       onStonePlaced: handleStonePlaced,
       onGameEnd: handleGameEnd,
       onError: handleError,
-      onOpponentLeft: handleOpponentLeft,
+      onOpponentLeft: handlePlayerLeft,
       onHostDisconnected: handleHostDisconnected,
     });
 

@@ -1,23 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useGameStore from '../store/game.js';
 import './Menu.css';
 
 export default function Menu() {
-  const [view, setView] = useState('main'); // main | ai | multiplayer-create | multiplayer-join | matchmaking
+  const [view, setView] = useState('main');
   const [difficulty, setDifficulty] = useState('medium');
   const [myColor, setMyColor] = useState('BLACK');
   const [playerName, setPlayerName] = useState('');
-  const [roomCode, setLocalRoomCode] = useState('');
+  const [roomCodeInput, setRoomCodeInput] = useState('');
 
-  const { 
-    startAIGame, 
-    startMultiplayerCreate, 
+  const {
+    startAIGame,
+    startMultiplayerCreate,
     joinMultiplayer,
     findOpponent,
     roomCode: storeRoomCode,
-    playerName: storePlayerName,
     waitingForOpponent,
-    setWaitingForOpponent
+    playerName: storePlayerName,
+    setWaitingForOpponent,
+    mode,
   } = useGameStore();
 
   const aiDifficulties = [
@@ -26,62 +27,67 @@ export default function Menu() {
     { value: 'hard', label: '上級' },
   ];
 
-  const handleCreateRoom = () => {
-    if (playerName.trim()) {
-      startMultiplayerCreate(playerName.trim());
-      setView('waiting-create');
+  // プレイヤー名の同期
+  useEffect(() => {
+    if (storePlayerName && !playerName) {
+      setPlayerName(storePlayerName);
     }
+  }, [storePlayerName, playerName]);
+
+  const handleCreateRoom = () => {
+    if (!playerName.trim()) return;
+    // まず待機画面を表示（UX向上）
+    setView('waiting-create');
+    startMultiplayerCreate(playerName.trim());
   };
 
   const handleJoinRoom = () => {
-    if (playerName.trim() && roomCode.length === 6) {
-      joinMultiplayer(roomCode.toUpperCase(), playerName.trim());
-      setView('waiting-join');
-    }
+    if (!playerName.trim() || roomCodeInput.length !== 6) return;
+    // まず待機画面を表示
+    setView('waiting-join');
+    joinMultiplayer(roomCodeInput.toUpperCase(), playerName.trim());
   };
 
   const handleMatchmaking = () => {
-    if (playerName.trim()) {
-      findOpponent(playerName.trim());
-      setView('matchmaking');
-    }
+    if (!playerName.trim()) return;
+    // まず待機画面を表示
+    setView('matchmaking');
+    findOpponent(playerName.trim());
   };
 
-  const handleBackToMain = () => {
+  const handleBack = () => {
     setView('main');
     setWaitingForOpponent(false);
   };
 
+  // マッチング待ち状態の判定（表示用）
+  const isMatchmaking = waitingForOpponent || (mode === 'multiplayer' && !storeRoomCode && view !== 'main');
+
   return (
     <div className="menu">
       <h1 className="menu-title">🏁 ブラウザオセロ</h1>
-      
+
+      {/* メインメニュー */}
       {view === 'main' && (
         <div className="menu-main">
-          <button 
-            className="menu-btn" 
-            onClick={() => setView('ai')}
-          >
+          <button className="menu-btn" onClick={() => setView('ai')}>
             🤖 AI対戦
           </button>
-          
-          <button 
-            className="menu-btn" 
-            onClick={() => setView('multiplayer-options')}
-          >
+          <button className="menu-btn" onClick={() => setView('multiplayer-options')}>
             👥 マルチプレイ
           </button>
         </div>
       )}
 
+      {/* AI対戦設定 */}
       {view === 'ai' && (
-        <div className="menu-ai">
+        <div className="menu-section">
           <h2>🤖 AI対戦</h2>
-          
+
           <div className="form-group">
-            <label>難易度を選択</label>
+            <label>難易度</label>
             <div className="difficulty-select">
-              {aiDifficulties.map(d => (
+              {aiDifficulties.map((d) => (
                 <button
                   key={d.value}
                   className={`diff-btn ${difficulty === d.value ? 'selected' : ''}`}
@@ -94,159 +100,147 @@ export default function Menu() {
           </div>
 
           <div className="form-group">
-            <label>石の色を選択</label>
+            <label>石の色</label>
             <div className="color-select">
               <button
                 className={`color-btn ${myColor === 'BLACK' ? 'selected' : ''}`}
                 onClick={() => setMyColor('BLACK')}
               >
-                ⚫ 先手 (黒)
+                ⚫ 先手（黒）
               </button>
               <button
                 className={`color-btn ${myColor === 'WHITE' ? 'selected' : ''}`}
                 onClick={() => setMyColor('WHITE')}
               >
-                ⚪ 後手 (白)
+                ⚪ 後手（白）
               </button>
             </div>
           </div>
 
           <div className="menu-actions">
-            <button 
-              className="btn btn-primary" 
-              onClick={() => {
-                startAIGame(difficulty, myColor === 'BLACK' ? 1 : 2);
-              }}
+            <button
+              className="btn btn-primary"
+              onClick={() => startAIGame(difficulty, myColor === 'BLACK' ? 1 : 2)}
             >
               ゲーム開始
             </button>
-            <button 
-              className="btn btn-secondary" 
-              onClick={handleBackToMain}
-            >
+            <button className="btn btn-secondary" onClick={handleBack}>
               戻る
             </button>
           </div>
         </div>
       )}
 
+      {/* マルチプレイオプション */}
       {view === 'multiplayer-options' && (
-        <div className="menu-multi">
+        <div className="menu-section">
           <h2>👥 マルチプレイ</h2>
-          
+
           <div className="form-group">
             <label>プレイヤー名</label>
             <input
               type="text"
               value={playerName}
-              onChange={e => setPlayerName(e.target.value)}
+              onChange={(e) => setPlayerName(e.target.value)}
               placeholder="名前を入力（16文字まで）"
               maxLength={16}
             />
           </div>
 
-          <div className="menu-actions">
-            <button 
-              className="btn btn-primary" 
-              onClick={handleCreateRoom}
-            >
-              ルーム作成
+          <div className="menu-actions vertical">
+            <button className="btn btn-primary" onClick={handleCreateRoom}>
+              🏠 ルームを作成する
             </button>
-            <button 
-              className="btn btn-secondary" 
+            <button
+              className="btn btn-secondary"
               onClick={() => setView('multiplayer-join')}
             >
-              ルームに参加
+              🔑 ルームに参加する
             </button>
-            <button 
-              className="btn btn-matchmaking" 
-              onClick={handleMatchmaking}
-            >
-              🔍 ランダムマッチ
+            <button className="btn btn-matchmaking" onClick={handleMatchmaking}>
+              ⚡ ランダムマッチ
             </button>
           </div>
         </div>
       )}
 
+      {/* ルーム参加 */}
       {view === 'multiplayer-join' && (
-        <div className="menu-multi">
-          <h2>👥 ルームに参加</h2>
-          
+        <div className="menu-section">
+          <h2>🔑 ルームに参加</h2>
+
           <div className="form-group">
             <label>プレイヤー名</label>
             <input
               type="text"
               value={playerName}
-              onChange={e => setPlayerName(e.target.value)}
-              placeholder="名前を入力（16文字まで）"
+              onChange={(e) => setPlayerName(e.target.value)}
+              placeholder="名前を入力"
               maxLength={16}
             />
           </div>
 
           <div className="form-group">
-            <label>ルームコード</label>
+            <label>ルームコード（6桁）</label>
             <input
               type="text"
-              value={roomCode}
-              onChange={e => setLocalRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-              placeholder="6桁のコード"
+              value={roomCodeInput}
+              onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+              placeholder="ABC123"
               maxLength={6}
-              style={{ textTransform: 'uppercase', letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.5rem' }}
+              className="code-input"
             />
           </div>
 
           <div className="menu-actions">
-            <button 
-              className="btn btn-primary" 
+            <button
+              className="btn btn-primary"
               onClick={handleJoinRoom}
+              disabled={playerName.trim().length === 0 || roomCodeInput.length !== 6}
             >
               参加する
             </button>
-            <button 
-              className="btn btn-secondary" 
-              onClick={() => setView('multiplayer-options')}
-            >
+            <button className="btn btn-secondary" onClick={() => setView('multiplayer-options')}>
               戻る
             </button>
           </div>
         </div>
       )}
 
+      {/* マッチング待ち / ルーム作成待ち */}
       {(view === 'waiting-create' || view === 'waiting-join' || view === 'matchmaking') && (
-        <div className="menu-waiting">
-          <h2>🔍 {view === 'matchmaking' ? '相手を募集中...' : '相手が入るまでお待ちください'}</h2>
-          
+        <div className="menu-section">
+          <h2>🔍 接続中...</h2>
+
           {view === 'waiting-create' && storeRoomCode && (
             <div className="room-code-display">
-              <p>ルームコード：</p>
-              <div className="room-code-box">
-                <span className="room-code">{storeRoomCode}</span>
-                <button 
+              <p>あなたのルームコード：</p>
+              <div className="code-box">
+                <span className="code-text">{storeRoomCode}</span>
+                <button
                   className="copy-btn"
-                  onClick={() => navigator.clipboard.writeText(storeRoomCode)}
-                  title="コピー"
+                  onClick={() => {
+                    navigator.clipboard.writeText(storeRoomCode);
+                  }}
                 >
-                  📋
+                  📋 コピー
                 </button>
               </div>
-              <p className="hint">このコードを相手に教えてください</p>
+              <p className="hint">このコードを相手に伝えてください</p>
             </div>
           )}
 
-          {view === 'matchmaking' && (
-            <p>マッチング相手を探しています...</p>
+          {view === 'waiting-join' && (
+            <p>相手が見つかるまでお待ちください...</p>
           )}
 
-          {view === 'waiting-join' && (
-            <p>ルーム <strong>{roomCode}</strong> に接続しています</p>
+          {view === 'matchmaking' && (
+            <p>マッチ相手を探しています...</p>
           )}
 
           <div className="spinner" />
-          
-          <button 
-            className="btn btn-secondary" 
-            onClick={handleBackToMain}
-          >
+
+          <button className="btn btn-secondary" onClick={handleBack}>
             キャンセル
           </button>
         </div>

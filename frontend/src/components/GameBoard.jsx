@@ -7,8 +7,8 @@ const BLACK = 1;
 const WHITE = 2;
 
 export default function GameBoard() {
-  const { 
-    game, myColor, mode, playerName, opponentName, leaveGame, notification, clearNotification 
+  const {
+    game, myColor, mode, playerName, opponentName, leaveGame, notification, clearNotification
   } = useGameStore();
   const [hoverPos, setHoverPos] = useState(null);
 
@@ -17,11 +17,10 @@ export default function GameBoard() {
   const isMyTurn = game.currentPlayer === myColor && !game.gameOver;
   const isAI = mode === 'ai' && game.currentPlayer !== myColor;
 
-  // Determine player names for score display
-  const myName = playerName;
-  const oppName = opponentName || (mode === 'multiplayer' ? 'Opponent' : null);
-  
-  // Black's displayed name and White's displayed name
+  // プレイヤー名の決定
+  const myName = playerName || 'You';
+  const oppName = opponentName || (mode === 'multiplayer' ? 'Opponent' : 'AI');
+
   let blackName = myColor === BLACK ? myName : oppName;
   let whiteName = myColor === WHITE ? myName : oppName;
 
@@ -33,7 +32,6 @@ export default function GameBoard() {
     }
   };
 
-  // Render board cell
   const renderCell = (row, col) => {
     const value = game.board[row][col];
     const isValidMove = isMyTurn && game.validMoves.some(m => m.row === row && m.col === col);
@@ -54,13 +52,13 @@ export default function GameBoard() {
         onClick={() => handleCellClick(row, col)}
         onMouseEnter={() => setHoverPos({ row, col })}
         onMouseLeave={() => setHoverPos(null)}
+        aria-label={`Row ${row + 1}, Column ${col + 1}, ${value === BLACK ? 'Black' : value === WHITE ? 'White' : 'Empty'}`}
       >
         {isValidMove && !value && <span className="move-hint" />}
       </div>
     );
   };
 
-  // Render grid with intersection dots for stone placement hint
   const renderGrid = () => {
     const cells = [];
     for (let r = 0; r < BOARD_SIZE; r++) {
@@ -71,7 +69,6 @@ export default function GameBoard() {
     return cells;
   };
 
-  // Score display
   const blackCount = game.score[BLACK];
   const whiteCount = game.score[WHITE];
 
@@ -82,7 +79,7 @@ export default function GameBoard() {
         {notification && (
           <div className="notification" onClick={clearNotification}>
             {notification.message}
-            <button className="close-btn">×</button>
+            <button className="close-btn" aria-label="閉じる">×</button>
           </div>
         )}
 
@@ -99,7 +96,7 @@ export default function GameBoard() {
         {/* Score */}
         <div className="score-display">
           <div className={`player-score ${game.currentPlayer === BLACK ? 'active' : ''}`}>
-            <span className="stone-icon black" />
+            <span className="stone-icon black" aria-hidden="true" />
             <span className="count">{blackCount}</span>
             {mode === 'multiplayer' && (
               <span className="player-name">{blackName || 'Black'}</span>
@@ -107,7 +104,7 @@ export default function GameBoard() {
           </div>
           <span className="vs">VS</span>
           <div className={`player-score ${game.currentPlayer === WHITE ? 'active' : ''}`}>
-            <span className="stone-icon white" />
+            <span className="stone-icon white" aria-hidden="true" />
             <span className="count">{whiteCount}</span>
             {mode === 'multiplayer' && (
               <span className="player-name">{whiteName || 'White'}</span>
@@ -121,11 +118,11 @@ export default function GameBoard() {
             <span className="game-over">🏆 ゲーム終了！</span>
           ) : (
             <>
-              <span className={`turn-dot ${game.currentPlayer === BLACK ? 'black' : 'white'}`} />
-              {isAI ? 'AIが考えています...' : 
+              <span className={`turn-dot ${game.currentPlayer === BLACK ? 'black' : 'white'}`} aria-hidden="true" />
+              {isAI ? 'AIが考えています...' :
                 isMyTurn ? 'あなたのターンです' :
-                mode === 'multiplayer' ? '相手のターンです' :
-                'あなたのターン'}
+                  mode === 'multiplayer' ? '相手のターンです' :
+                    'あなたのターン'}
             </>
           )}
         </div>
@@ -145,16 +142,16 @@ export default function GameBoard() {
             <h2>🏆 ゲーム終了！</h2>
             <div className="final-score">
               <div className={`final-player black`}>
-                <span className="stone-icon black large" />
+                <span className="stone-icon black large" aria-hidden="true" />
                 <span>{blackCount} 石</span>
               </div>
               <span>=</span>
               <div className={`final-player white`}>
-                <span className="stone-icon white large" />
+                <span className="stone-icon white large" aria-hidden="true" />
                 <span>{whiteCount} 石</span>
               </div>
             </div>
-            
+
             {game.winner === myColor ? (
               <p className="win-text">🎉 おめでとうございます！勝ちました！</p>
             ) : game.winner !== null ? (
