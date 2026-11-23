@@ -34,6 +34,7 @@ export function setSocketHandlers(handlers) {
     onStonePlaced: 'stone-placed',
     onGameEnd: 'game-end',
     onError: 'error',
+    onOpponentLeft: 'opponent-left',
   };
 
   for (const [handlerName, eventName] of Object.entries(eventMap)) {
@@ -320,6 +321,15 @@ const useGameStore = create((set, get) => ({
 
   clearNotification: () => set({ notification: null }),
 }));
+
+// Expose socket getter for components that need to emit events directly
+useGameStore.getState()._getSocket = () => socket;
+
+// Cancel matchmaking from queue
+useGameStore.cancelMatchmaking = () => {
+  socket.emit('cancel-matchmaking');
+  useGameStore.getState().resetMultiplayerState();
+};
 
 // Module-level AI move function uses getState() which is available on the created store
 function aiMove() {

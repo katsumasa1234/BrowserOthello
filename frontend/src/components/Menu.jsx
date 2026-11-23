@@ -24,6 +24,8 @@ export default function Menu() {
     roomId: storeRoomId,
     resetMultiplayerState,
     returnToMenu,
+    notification,
+    clearNotification,
   } = useGameStore();
 
   const aiDifficulties = [
@@ -58,11 +60,19 @@ export default function Menu() {
   };
 
   const handleBack = () => {
-    // 待機画面から戻る場合はマルチプレイ状態をリセット
-    if (waitingForOpponent || storeRoomCode) {
+    // マッチングキャンセル時はサーバーにも通知してキューから解除
+    if (view === 'matchmaking' && waitingForOpponent) {
+      useGameStore.cancelMatchmaking();
+    } else if (waitingForOpponent || storeRoomCode) {
+      // 部屋作成中・参加中は leave-room を送信
+      const socket = useGameStore.getState()._getSocket?.();
+      if (socket && socket.connected) {
+        socket.emit('leave-room');
+      }
       useGameStore.getState().resetMultiplayerState();
       setWaitingForOpponent(false);
     }
+    
     setView('main');
   };
 
@@ -74,6 +84,14 @@ export default function Menu() {
 
   return (
     <div className="menu">
+      {/* Toast notification */}
+      {notification && view === 'main' && (
+        <div className="notification" onClick={clearNotification}>
+          {typeof notification === 'string' ? notification : notification.message}
+          <button className="close-btn" onClick={(e) => { e.stopPropagation(); clearNotification(); }}>&times;</button>
+        </div>
+      )}
+
       <h1 className="menu-title">Othello</h1>
 
       {/* メインメニュー */}

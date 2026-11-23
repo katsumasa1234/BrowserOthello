@@ -16,6 +16,8 @@ class RoomManager {
     this.io = io;
     // roomId -> { room, socket1, socket2, game, started, playerNames }
     this.rooms = new Map();
+    // Matchmaking queue for random matching
+    this.matchQueue = [];
   }
 
   createRoom(socket, playerName) {
@@ -246,23 +248,57 @@ class RoomManager {
     }
   }
 
-  findOpponent(socket) {
-    // Find an available room
-    for (const [roomId, room] of this.rooms) {
-      if (room.status === 'waiting' && !room.sockets.has(socket.id)) {
-        const sockets = Array.from(room.sockets.values());
-        if (sockets.length >= 2) continue;
-
-        const hostEntry = room.sockets.get(room.hostId);
-        if (!hostEntry) continue;
-
-        // Join the room
-        this.joinRoom(socket, room.roomCode, socket.data?.playerName || 'Player');
-        return;
-      }
+  findOpponent(socket, playerName) {
+    // Save playerName on socket for future use
+    if (playerName) {
+      socket.data.playerName = playerName;
     }
 
-    socket.emit('error', { message: '現在、利用可能な部屋がありません。' });
+    // Add to matching queue
+    const queueEntry = { socket, name: playerName || 'Player' };
+    this.matchQueue.push(queueEntry);
+
+    // Try to find a match in the queue
+    if (this.matchQueue.length >= 2) {
+      const player1 = this.matchQueue.shift();
+      const player2 = this.matchQueue.shift();
+
+      // Create a new room for the matched players
+      const roomCode = generateRoomCode();
+      const roomId = uuidv4();
+
+      const room = {
+        roomId,
+        roomCode,
+        status: 'waiting',
+        hostId: player1.socket.id,
+        game: null,
+        playerNames: [player1.name, player2.name],
+        sockets: new Map([
+          [player1.socket.id, { socket: player1.socket, name: player1.name, color: 1 }],
+          [player2.socket.id, { socket: player2.socket, name: player2.name, color: 2 }],
+        ]),
+      };
+
+      this.rooms.set(roomId, room);
+
+      // Join both players to the room
+      player1.socket.join(roomId);
+      player2.socket.join(roomId);
+
+      // Notify host (player1)
+      player1.socket.emit('room-created', { roomCode, roomId });
+
+      // Notify joiner (player2) - now with real opponent name
+      player2.socket.emit('joined-room', { roomCode, roomId, opponentName: player1.name });
+    }
+  }
+
+  removeFromQueue(socket) {
+    const idx = this.matchQueue.findIndex(entry => entry.socket.id === socket.id);
+    if (idx !== -1) {
+      this.matchQueue.splice(idx, 1);
+    }
   }
 }
 

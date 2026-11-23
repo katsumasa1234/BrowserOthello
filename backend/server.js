@@ -53,8 +53,14 @@ io.on('connection', (socket) => {
   });
 
   // Request available rooms for matchmaking
-  socket.on('find-opponent', () => {
-    roomManager.findOpponent(socket);
+  socket.on('find-opponent', ({ playerName }) => {
+    roomManager.findOpponent(socket, playerName);
+  });
+
+  // Cancel matchmaking
+  socket.on('cancel-matchmaking', () => {
+    roomManager.removeFromQueue(socket);
+    socket.emit('error', { message: 'マッチングをキャンセルしました' });
   });
 
   // Disconnect
