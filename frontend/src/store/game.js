@@ -79,6 +79,20 @@ const useGameStore = create((set, get) => ({
     socket.emit('join-room', { roomCode, playerName });
   },
 
+  findOpponent: (playerName) => {
+    const socket = getSocket();
+    // Store player name in socket data for matchmaking
+    socket.data = { playerName };
+    set({ 
+      mode: 'multiplayer',
+      playerName,
+      isHost: false,
+      waitingForOpponent: true,
+      showMenu: false,
+    });
+    socket.emit('find-opponent', { playerName });
+  },
+
   acceptGame: (roomCode) => {
     const socket = getSocket();
     socket.emit('accept-game', { roomCode });

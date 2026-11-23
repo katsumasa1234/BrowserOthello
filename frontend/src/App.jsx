@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import useGameStore, { clearSocketHandlers } from './store/game.js';
 import Menu from './components/Menu';
 import GameBoard from './components/GameBoard';
@@ -9,69 +9,75 @@ const store = useGameStore;
 function App() {
   const { 
     mode, game, setSocketHandlers, playerName, 
-    setRoomCode, leaveGame 
+    setRoomCode, leaveGame, roomCode, waitingForOpponent
   } = useGameStore();
+
+  const handleRoomCreated = useCallback((data) => {
+    setRoomCode(data.roomCode);
+    store.setState({ roomId: data.roomId });
+    window.location.hash = `room/${data.roomCode}`;
+  }, [setRoomCode]);
+
+  const handleJoinedRoom = useCallback((data) => {
+    store.setState({ 
+      roomId: data.roomId,
+      opponentName: data.opponentName,
+      waitingForOpponent: true 
+    });
+  }, []);
+
+  const handleGameStart = useCallback((data) => {
+    store.setState({ 
+      game: data.game, 
+      myColor: data.myColor,
+      opponentName: data.opponentName,
+      roomId: data.roomId,
+      waitingForOpponent: false 
+    });
+  }, []);
+
+  const handleOpponentMove = useCallback((data) => {
+    store.setState({ game: data.newGame });
+  }, []);
+
+  const handleStonePlaced = useCallback((data) => {
+    store.setState({ game: data.newGame });
+  }, []);
+
+  const handleGameEnd = useCallback((data) => {
+    store.setState({ 
+      game: data.game,
+      _endReason: data.reason || null,
+      _winnerName: data.winnerName || null,
+    });
+  }, []);
+
+  const handleError = useCallback((data) => {
+    alert(data.message);
+  }, []);
+
+  const handlePlayerJoined = useCallback(() => {}, []);
+  const handleOpponentLeft = useCallback(() => {}, []);
+  const handleHostDisconnected = useCallback(() => {}, []);
 
   useEffect(() => {
     setSocketHandlers({
-      onRoomCreated: (data) => {
-        setRoomCode(data.roomCode);
-        store.setState({ roomId: data.roomId });
-        window.location.hash = `room/${data.roomCode}`;
-      },
-      onJoinedRoom: (data) => {
-        store.setState({ 
-          roomId: data.roomId,
-          opponentName: data.opponentName,
-          waitingForOpponent: true 
-        });
-      },
-      onPlayerJoined: () => {},
-      onGameStart: (data) => {
-        store.setState({ 
-          game: data.game, 
-          myColor: data.myColor,
-          opponentName: data.opponentName,
-          roomId: data.roomId,
-          waitingForOpponent: false 
-        });
-      },
-      onOpponentMove: (data) => {
-        store.setState({ game: data.newGame });
-      },
-      onStonePlaced: (data) => {
-        store.setState({ game: data.newGame });
-      },
-      onGameEnd: (data) => {
-        store.setState({ 
-          game: data.game,
-          _endReason: data.reason || null,
-          _winnerName: data.winnerName || null,
-        });
-      },
-      onError: (data) => {
-        alert(data.message);
-      },
+      onRoomCreated: handleRoomCreated,
+      onJoinedRoom: handleJoinedRoom,
+      onPlayerJoined: handlePlayerJoined,
+      onGameStart: handleGameStart,
+      onOpponentMove: handleOpponentMove,
+      onStonePlaced: handleStonePlaced,
+      onGameEnd: handleGameEnd,
+      onError: handleError,
+      onOpponentLeft: handleOpponentLeft,
+      onHostDisconnected: handleHostDisconnected,
     });
 
     return () => {
       clearSocketHandlers();
     };
-  }, [setSocketHandlers, setRoomCode, leaveGame]);
-
-  // Hash routing for room codes
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      if (hash.startsWith('#room/')) {
-        const code = hash.replace('#room/', '');
-        setRoomCode(code);
-      }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [setRoomCode]);
+  }, [setSocketHandlers]);
 
   if (mode === 'menu') {
     return <Menu />;
