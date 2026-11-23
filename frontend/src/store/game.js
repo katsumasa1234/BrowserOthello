@@ -327,8 +327,11 @@ useGameStore.getState()._getSocket = () => socket;
 
 // Cancel matchmaking from queue
 useGameStore.cancelMatchmaking = () => {
-  socket.emit('cancel-matchmaking');
-  useGameStore.getState().resetMultiplayerState();
+  try {
+    socket.emit('cancel-matchmaking');
+  } catch (e) { /* ignore emit errors */ }
+  resetMultiplayerState();
+  set({ mode: 'menu', waitingForOpponent: false, showMenu: true });
 };
 
 // Module-level AI move function uses getState() which is available on the created store

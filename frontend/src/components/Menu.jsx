@@ -241,23 +241,30 @@ export default function Menu() {
       {/* マッチング待ち / ルーム作成待ち */}
       {(view === 'waiting-create' || view === 'waiting-join' || view === 'matchmaking') && (
         <div className="menu-section waiting-view">
-          {view === 'waiting-create' && storeRoomCode && playerJoined ? (
+          {((view === 'waiting-create' && playerJoined) || (view === 'matchmaking')) && storeRoomCode ? (
             <>
-              <h2>相手が参加しました！</h2>
-              <div className="room-code-display">
-                <p>ルームコード</p>
-                <div className="code-box">
-                  <span className="code-text">{storeRoomCode}</span>
-                  <button
-                    className="copy-btn"
-                    onClick={() => {
-                      navigator.clipboard.writeText(storeRoomCode);
-                    }}
-                  >
-                    コピー
-                  </button>
+              {(view === 'waiting-create' && !playerJoined) && (
+                <h2>相手を迎えています</h2>
+              )}
+              {((view === 'waiting-create' && playerJoined) || view === 'matchmaking') && (
+                <h2>準備完了！ゲーム開始します</h2>
+              )}
+              {view !== 'matchmaking' && (
+                <div className="room-code-display">
+                  <p>ルームコード</p>
+                  <div className="code-box">
+                    <span className="code-text">{storeRoomCode}</span>
+                    <button
+                      className="copy-btn"
+                      onClick={() => {
+                        navigator.clipboard.writeText(storeRoomCode);
+                      }}
+                    >
+                      コピー
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
               <button
                 className="btn btn-primary start-game-btn"
                 onClick={() => {

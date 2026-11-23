@@ -49,6 +49,7 @@ function App() {
         roomCode: data.roomCode,
         opponentName: data.opponentName,
         waitingForOpponent: true,
+        playerJoined: false,
         notification: { message: `ルーム「${data.roomCode}」に参加しました！`, timestamp: Date.now() },
       });
     }

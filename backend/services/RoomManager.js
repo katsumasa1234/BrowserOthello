@@ -111,9 +111,6 @@ class RoomManager {
 
     const room = this.rooms.get(targetRoom.roomId);
     
-    // Only host can accept
-    if (socket.id !== room.hostId) return;
-
     // Check both players are connected
     const sockets = Array.from(room.sockets.values());
     if (sockets.length < 2) return;
