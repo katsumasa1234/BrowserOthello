@@ -55,6 +55,15 @@ function App() {
 
   const handlePlayerJoined = useCallback((data) => {
     console.log('✅ Player joined:', data);
+    if (data && data.isHost) {
+      // We are the host, opponent has joined
+      store.setState({ playerJoined: true });
+      console.log('[App] Opponent joined - showing start button');
+    } else if (data && !data.isHost) {
+      // We are the joining player
+      store.setState({ opponentName: data.player });
+      console.log('[App] Host has been notified, waiting for game start');
+    }
   }, []);
 
   const handleGameStart = useCallback((data) => {

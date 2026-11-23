@@ -76,9 +76,11 @@ const useGameStore = create((set, get) => ({
   roomId: null,
   roomCode: null,
   isHost: false,
+  opponentName: null,
+  playerJoined: false, // track if opponent has joined (host)
+  showStartButton: false, // show "start game" button for host
   waitingForOpponent: false,
   playerName: '',
-  opponentName: null,
   showMenu: true,
   notification: null,
 

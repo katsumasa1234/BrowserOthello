@@ -14,9 +14,11 @@ export default function Menu() {
     startMultiplayerCreate,
     joinMultiplayer,
     findOpponent,
+    acceptGame,
     roomCode: storeRoomCode,
     waitingForOpponent,
     playerName: storePlayerName,
+    playerJoined,
     setWaitingForOpponent,
     mode,
     roomId: storeRoomId,
@@ -217,11 +219,11 @@ export default function Menu() {
       {/* マッチング待ち / ルーム作成待ち */}
       {(view === 'waiting-create' || view === 'waiting-join' || view === 'matchmaking') && (
         <div className="menu-section">
-          <h2>🔍 接続中...</h2>
+          <h2>🔍 {playerJoined ? '相手が見つかりました！' : '接続中...'}</h2>
 
           {/* デバッグ情報 */}
           <div style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>
-            state: view={view} | storeRoomCode={storeRoomCode || '(null)'} | waitingForOpponent={String(waitingForOpponent)}
+            state: view={view} | storeRoomCode={storeRoomCode || '(null)'} | playerJoined={String(playerJoined)} | waitingForOpponent={String(waitingForOpponent)} | isHost={String(mode === 'multiplayer' && !storeRoomCode ? false : true)}
           </div>
 
           {view === 'waiting-create' && storeRoomCode && (
@@ -252,6 +254,25 @@ export default function Menu() {
 
           {view === 'matchmaking' && (
             <p>マッチ相手を探しています...</p>
+          )}
+
+          {/* Host start button: show when host, room code exists, and opponent has joined */}
+          {(storeRoomCode && playerJoined) && (
+            <button
+              className="btn btn-primary start-game-btn"
+              onClick={() => {
+                console.log('[Menu] → Start game clicked, roomCode:', storeRoomCode);
+                acceptGame(storeRoomCode);
+                setView('waiting-create');
+              }}
+            >
+              🎮 ゲーム開始する
+            </button>
+          )}
+
+          {/* Joining player: show waiting message */}
+          {mode === 'multiplayer' && !storeRoomCode && view !== 'matchmaking' && (
+            <p className="info-text">相手の準備が整い次第、ゲームが始まります</p>
           )}
 
           <div className="spinner" />
