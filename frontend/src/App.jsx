@@ -159,9 +159,10 @@ function App() {
   // Determine what to show:
   // - If in menu mode → Menu
   // - If waitingForOpponent → Menu (showing waiting state)
-  // - If multiplayerLeft AND game exists → GameBoard (with disconnect banner)
+  // - If multiplayerLeft AND no game → Menu (player left lobby/game)
+  // - If multiplayerLeft AND game exists → GameBoard (with disconnect/result banner)
   // - Otherwise (game exists or in AI mode) → GameBoard
-  const shouldShowMenu = (mode === 'menu' || waitingForOpponent) && !game;
+  const shouldShowMenu = mode === 'menu' || waitingForOpponent || (multiplayerLeft && !game);
 
   if (shouldShowMenu) {
     return <Menu />;

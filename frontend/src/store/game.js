@@ -269,13 +269,20 @@ const useGameStore = create((set, get) => ({
         roomId: null,
         roomCode: null,
         waitingForOpponent: false,
+        multiplayerLeft: false,
       });
     } else if (state.mode === 'multiplayer' && state.game) {
       // Multiplayer game in progress - notify server of disconnect
       if (socket.connected) {
         socket.emit('leave-room');
       }
-      set({ multiplayerLeft: true, showMenu: true });
+      // Return to main menu
+      useGameStore.getState().resetMultiplayerState();
+      set({
+        mode: 'menu',
+        game: null,
+        showMenu: true,
+      });
     } else if (state.mode === 'multiplayer') {
       // Was in lobby/waiting - just reset
       useGameStore.getState().resetMultiplayerState();
@@ -286,11 +293,13 @@ const useGameStore = create((set, get) => ({
   disconnectFromGame: () => {
     const state = get();
     if (state.mode === 'multiplayer' && state.game) {
-      // Opponent disconnected - keep game result visible
+      // Opponent disconnected - return to menu
+      useGameStore.getState().resetMultiplayerState();
       set({
-        notification: { message: '相手が接続を切断しました', timestamp: Date.now() },
-        multiplayerLeft: true,
+        mode: 'menu',
+        game: null,
         showMenu: true,
+        notification: { message: '相手が接続を切断しました', timestamp: Date.now() },
       });
     } else if (state.mode === 'multiplayer') {
       useGameStore.getState().resetMultiplayerState();
