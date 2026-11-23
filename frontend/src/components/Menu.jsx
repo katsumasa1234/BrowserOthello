@@ -19,7 +19,10 @@ export default function Menu() {
     playerName: storePlayerName,
     setWaitingForOpponent,
     mode,
+    roomId: storeRoomId,
   } = useGameStore();
+
+  console.log('[Menu] Rendered - view:', view, 'storeRoomCode:', storeRoomCode, 'storeRoomId:', storeRoomId);
 
   const aiDifficulties = [
     { value: 'easy', label: '初級' },
@@ -35,6 +38,7 @@ export default function Menu() {
   }, [storePlayerName, playerName]);
 
   const handleCreateRoom = () => {
+    console.log('[Menu] → handleCreateRoom called, playerName:', playerName);
     if (!playerName.trim()) return;
     // まず待機画面を表示（UX向上）
     setView('waiting-create');
@@ -42,6 +46,7 @@ export default function Menu() {
   };
 
   const handleJoinRoom = () => {
+    console.log('[Menu] → handleJoinRoom called, roomCode:', roomCodeInput);
     if (!playerName.trim() || roomCodeInput.length !== 6) return;
     // まず待機画面を表示
     setView('waiting-join');
@@ -49,6 +54,7 @@ export default function Menu() {
   };
 
   const handleMatchmaking = () => {
+    console.log('[Menu] → handleMatchmaking called');
     if (!playerName.trim()) return;
     // まず待機画面を表示
     setView('matchmaking');
@@ -56,6 +62,7 @@ export default function Menu() {
   };
 
   const handleBack = () => {
+    console.log('[Menu] → handleBack, clearing view');
     setView('main');
     setWaitingForOpponent(false);
   };
@@ -211,6 +218,11 @@ export default function Menu() {
       {(view === 'waiting-create' || view === 'waiting-join' || view === 'matchmaking') && (
         <div className="menu-section">
           <h2>🔍 接続中...</h2>
+
+          {/* デバッグ情報 */}
+          <div style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>
+            state: view={view} | storeRoomCode={storeRoomCode || '(null)'} | waitingForOpponent={String(waitingForOpponent)}
+          </div>
 
           {view === 'waiting-create' && storeRoomCode && (
             <div className="room-code-display">

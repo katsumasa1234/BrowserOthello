@@ -19,6 +19,11 @@ const io = new Server(server, {
 
 const roomManager = new RoomManager(io);
 
+// API endpoint for testing socket connection
+app.get('/api/test-socket', (req, res) => {
+  res.json({ status: 'ok', connectedClients: io.engine.clientsCount });
+});
+
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
 

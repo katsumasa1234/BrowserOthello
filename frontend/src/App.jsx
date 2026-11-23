@@ -10,8 +10,10 @@ const store = useGameStore;
 function App() {
   const {
     mode, game, setSocketHandlers, playerName,
-    setRoomCode, leaveGame, roomCode, waitingForOpponent, notification, setNotification
+    leaveGame, roomCode, waitingForOpponent, notification, setNotification
   } = useGameStore();
+
+  console.log('[App] Rendered - roomCode:', roomCode, 'game:', !!game, 'mode:', mode);
 
   // Show toast notification for a few seconds
   useEffect(() => {
@@ -23,21 +25,21 @@ function App() {
   }, [notification]);
 
   const handleRoomCreated = useCallback((data) => {
-    console.log('✅ Room created:', data);
+    console.log('[App] ✅ Room created event received:', data);
     if (data && data.roomCode) {
-      setRoomCode(data.roomCode);
       store.setState({
         roomId: data.roomId,
         roomCode: data.roomCode,
         waitingForOpponent: true,
       });
+      console.log('[App] ✅ Zustand state updated - new roomCode:', data.roomCode);
     } else {
-      console.error('Invalid room-created event:', data);
+      console.error('[App] ❌ Invalid room-created event:', data);
     }
-  }, [setRoomCode]);
+  }, []);
 
   const handleJoinedRoom = useCallback((data) => {
-    console.log('✅ Joined room:', data);
+    console.log('[App] ✅ Joined room event received:', data);
     if (data && data.roomCode) {
       store.setState({
         roomId: data.roomId,
@@ -45,8 +47,9 @@ function App() {
         opponentName: data.opponentName,
         waitingForOpponent: true,
       });
+      console.log('[App] ✅ Zustand state updated - new roomCode:', data.roomCode);
     } else {
-      console.error('Invalid joined-room event:', data);
+      console.error('[App] ❌ Invalid joined-room event:', data);
     }
   }, []);
 
@@ -126,6 +129,8 @@ function App() {
 
   // Show menu if no game started yet OR in multiplayer waiting state
   const shouldShowMenu = !game;
+
+  console.log('[App] Decision - shouldShowMenu:', shouldShowMenu);
 
   if (shouldShowMenu) {
     return <Menu />;

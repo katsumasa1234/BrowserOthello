@@ -6,17 +6,20 @@ import socketService from '../services/socket.js';
 const BLACK = 1;
 const WHITE = 2;
 
+// Direct socket reference - no getter indirection
+const socket = socketService.getSocket();
+
 // Track all socket listeners for cleanup
 const registeredListeners = [];
 
 function registerListener(eventName, handler) {
-  const socket = socketService.getSocket();
+  console.log('[Store] Registering listener:', eventName);
   socket.on(eventName, handler);
   registeredListeners.push({ eventName, handler });
 }
 
 export function clearSocketHandlers() {
-  const socket = socketService.getSocket();
+  console.log('[Store] Clearing all', registeredListeners.length, 'listeners');
   registeredListeners.forEach(({ eventName, handler }) => {
     socket.off(eventName, handler);
   });
@@ -26,13 +29,13 @@ export function clearSocketHandlers() {
 // Helper: ensure socket is connected, wait up to 10 seconds
 function connectSocketAndWait() {
   return new Promise((resolve, reject) => {
-    const socket = socketService.getSocket();
-
     if (socket.connected) {
+      console.log('[Store] Socket already connected:', socket.id);
       resolve(socket);
       return;
     }
 
+    console.log('[Store] Connecting socket...');
     // Start connection if not already started
     socket.connect();
 
@@ -42,12 +45,14 @@ function connectSocketAndWait() {
     }, 10000);
 
     function onConnect() {
+      console.log('[Store] Socket connected:', socket.id);
       clearTimeout(timeout);
       cleanup();
       resolve(socket);
     }
 
     function onError(err) {
+      console.error('[Store] Socket connection error:', err.message);
       clearTimeout(timeout);
       cleanup();
       reject(err);
@@ -101,7 +106,10 @@ const useGameStore = create((set, get) => ({
 
   startMultiplayerCreate: async (playerName) => {
     try {
-      const socket = await connectSocketAndWait();
+      console.log('[Store] >>> startMultiplayerCreate called, socket.connected:', socket.connected);
+      const sock = await connectSocketAndWait();
+      console.log('[Store] >>> Socket connected via connectSocketAndWait, emitting create-room...');
+      
       set({
         mode: 'multiplayer',
         playerName,
@@ -110,8 +118,11 @@ const useGameStore = create((set, get) => ({
         showMenu: false,
         notification: null,
       });
-      socket.emit('create-room', { playerName });
+      
+      sock.emit('create-room', { playerName });
+      console.log('[Store] >>> create-room emitted successfully');
     } catch (err) {
+      console.error('[Store] startMultiplayerCreate error:', err.message);
       set({
         waitingForOpponent: false,
         mode: 'menu',
@@ -122,7 +133,9 @@ const useGameStore = create((set, get) => ({
 
   joinMultiplayer: async (roomCode, playerName) => {
     try {
-      const socket = await connectSocketAndWait();
+      const sock = await connectSocketAndWait();
+      console.log('[Store] Emitting join-room:', roomCode);
+      
       set({
         mode: 'multiplayer',
         playerName,
@@ -132,8 +145,10 @@ const useGameStore = create((set, get) => ({
         showMenu: false,
         notification: null,
       });
-      socket.emit('join-room', { roomCode, playerName });
+      
+      sock.emit('join-room', { roomCode, playerName });
     } catch (err) {
+      console.error('[Store] joinMultiplayer error:', err.message);
       set({
         waitingForOpponent: false,
         mode: 'menu',
@@ -144,7 +159,9 @@ const useGameStore = create((set, get) => ({
 
   findOpponent: async (playerName) => {
     try {
-      const socket = await connectSocketAndWait();
+      const sock = await connectSocketAndWait();
+      console.log('[Store] Emitting find-opponent');
+      
       set({
         mode: 'multiplayer',
         playerName,
@@ -155,8 +172,10 @@ const useGameStore = create((set, get) => ({
         roomCode: null,
         notification: null,
       });
-      socket.emit('find-opponent', { playerName });
+      
+      sock.emit('find-opponent', { playerName });
     } catch (err) {
+      console.error('[Store] findOpponent error:', err.message);
       set({
         waitingForOpponent: false,
         mode: 'menu',
@@ -167,8 +186,9 @@ const useGameStore = create((set, get) => ({
 
   acceptGame: async (roomCode) => {
     try {
-      const socket = await connectSocketAndWait();
-      socket.emit('accept-game', { roomCode });
+      const sock = await connectSocketAndWait();
+      console.log('[Store] Emitting accept-game:', roomCode);
+      sock.emit('accept-game', { roomCode });
     } catch (err) {
       set({ notification: { message: '接続に失敗しました', timestamp: Date.now() } });
     }
@@ -190,7 +210,7 @@ const useGameStore = create((set, get) => ({
         setTimeout(() => aiMove(), 300);
       }
     } else if (state.mode === 'multiplayer') {
-      const socket = socketService.getSocket();
+      console.log('[Store] Emitting place-stone:', { roomId: state.roomId, move: { row, col } });
       socket.emit('place-stone', {
         roomId: state.roomId,
         move: { row, col }
@@ -200,7 +220,6 @@ const useGameStore = create((set, get) => ({
 
   leaveGame: () => {
     clearSocketHandlers();
-    const socket = socketService.getSocket();
     socket.emit('leave-room');
     set({
       mode: 'menu',
@@ -219,8 +238,18 @@ const useGameStore = create((set, get) => ({
     // Clear previous listeners first to prevent duplicates
     clearSocketHandlers();
 
-    if (handlers.onRoomCreated) registerListener('room-created', handlers.onRoomCreated);
-    if (handlers.onJoinedRoom) registerListener('joined-room', handlers.onJoinedRoom);
+    if (handlers.onRoomCreated) {
+      registerListener('room-created', (data) => {
+        console.log('[Store] onRoomCreated event received:', data);
+        handlers.onRoomCreated(data);
+      });
+    }
+    if (handlers.onJoinedRoom) {
+      registerListener('joined-room', (data) => {
+        console.log('[Store] onJoinedRoom event received:', data);
+        handlers.onJoinedRoom(data);
+      });
+    }
     if (handlers.onPlayerJoined) registerListener('player-joined', handlers.onPlayerJoined);
     if (handlers.onGameStart) registerListener('game-start', handlers.onGameStart);
     if (handlers.onOpponentMove) registerListener('opponent-move', handlers.onOpponentMove);
