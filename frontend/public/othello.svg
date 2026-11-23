@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect x="5" y="5" width="90" height="90" rx="8" fill="#2e7d32"/>
+  <!-- Grid lines -->
+  <g stroke="#1b5e20" stroke-width="1">
+    <line x1="16.25" y1="5" x2="16.25" y2="95"/>
+    <line x1="27.5" y1="5" x2="27.5" y2="95"/>
+    <line x1="38.75" y1="5" x2="38.75" y2="95"/>
+    <line x1="50" y1="5" x2="50" y2="95"/>
+    <line x1="61.25" y1="5" x2="61.25" y2="95"/>
+    <line x1="72.5" y1="5" x2="72.5" y2="95"/>
+    <line x1="83.75" y1="5" x2="83.75" y2="95"/>
+    <line x1="5" y1="16.25" x2="95" y2="16.25"/>
+    <line x1="5" y1="27.5" x2="95" y2="27.5"/>
+    <line x1="5" y1="38.75" x2="95" y2="38.75"/>
+    <line x1="5" y1="50" x2="95" y2="50"/>
+    <line x1="5" y1="61.25" x2="95" y2="61.25"/>
+    <line x1="5" y1="72.5" x2="95" y2="72.5"/>
+    <line x1="5" y1="83.75" x2="95" y2="83.75"/>
+  </g>
+  <!-- Black stone -->
+  <circle cx="38.75" cy="38.75" r="8" fill="#000" stroke="#333" stroke-width="1"/>
+  <!-- White stone -->
+  <circle cx="61.25" cy="61.25" r="8" fill="#fff" stroke="#ccc" stroke-width="1"/>
+  <!-- Black stone -->
+  <circle cx="61.25" cy="38.75" r="8" fill="#000" stroke="#333" stroke-width="1"/>
+  <!-- White stone -->
+  <circle cx="38.75" cy="61.25" r="8" fill="#fff" stroke="#ccc" stroke-width="1"/>
+</svg>
