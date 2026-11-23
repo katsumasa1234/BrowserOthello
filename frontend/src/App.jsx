@@ -4,7 +4,7 @@ import socketService from './services/socket.js';
 import Menu from './components/Menu';
 import GameBoard from './components/GameBoard';
 
-const store = useGameStore;
+const store = useGameStore();
 
 function App() {
   const {
@@ -121,7 +121,7 @@ function App() {
       });
     } else if (mode === 'multiplayer' && !game) {
       // Was in lobby or waiting - just return to menu
-      store.getState().resetMultiplayerState();
+      useGameStore.getState().resetMultiplayerState();
       store.setState({ mode: 'menu', showMenu: true });
     }
   }, [mode, game]);
