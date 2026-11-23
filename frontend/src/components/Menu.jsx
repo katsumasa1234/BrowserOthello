@@ -230,6 +230,10 @@ export default function Menu() {
             </div>
           )}
 
+          {view === 'waiting-create' && !storeRoomCode && (
+            <p>ルームを作成しています...</p>
+          )}
+
           {view === 'waiting-join' && (
             <p>相手が見つかるまでお待ちください...</p>
           )}

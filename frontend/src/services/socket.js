@@ -8,7 +8,28 @@ export function getSocket() {
   if (!socket) {
     socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
+      autoConnect: false,
     });
+
+    socket.on('connect', () => {
+      console.log('✅ Socket connected:', socket.id);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('❌ Socket disconnected');
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err.message);
+    });
+  }
+  return socket;
+}
+
+export function connectSocket() {
+  const socket = getSocket();
+  if (!socket.connected) {
+    socket.connect();
   }
   return socket;
 }

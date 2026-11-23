@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import useGameStore, { clearSocketHandlers } from './store/game.js';
+import { getSocket } from './services/socket.js';
 import Menu from './components/Menu';
 import GameBoard from './components/GameBoard';
 import './styles/index.css';
@@ -9,36 +10,52 @@ const store = useGameStore;
 function App() {
   const {
     mode, game, setSocketHandlers, playerName,
-    setRoomCode, leaveGame, roomCode, waitingForOpponent
+    setRoomCode, leaveGame, roomCode, waitingForOpponent, notification, setNotification
   } = useGameStore();
 
+  // Show toast notification for a few seconds
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(() => {
+      store.setState({ notification: null });
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [notification]);
+
   const handleRoomCreated = useCallback((data) => {
-    console.log('Room created:', data);
-    setRoomCode(data.roomCode);
-    store.setState({
-      roomId: data.roomId,
-      roomCode: data.roomCode,
-      waitingForOpponent: true,
-    });
+    console.log('✅ Room created:', data);
+    if (data && data.roomCode) {
+      setRoomCode(data.roomCode);
+      store.setState({
+        roomId: data.roomId,
+        roomCode: data.roomCode,
+        waitingForOpponent: true,
+      });
+    } else {
+      console.error('Invalid room-created event:', data);
+    }
   }, [setRoomCode]);
 
   const handleJoinedRoom = useCallback((data) => {
-    console.log('Joined room:', data);
-    store.setState({
-      roomId: data.roomId,
-      roomCode: data.roomCode,
-      opponentName: data.opponentName,
-      waitingForOpponent: true,
-    });
+    console.log('✅ Joined room:', data);
+    if (data && data.roomCode) {
+      store.setState({
+        roomId: data.roomId,
+        roomCode: data.roomCode,
+        opponentName: data.opponentName,
+        waitingForOpponent: true,
+      });
+    } else {
+      console.error('Invalid joined-room event:', data);
+    }
   }, []);
 
   const handlePlayerJoined = useCallback((data) => {
-    console.log('Player joined:', data);
-    // Host notified that a player joined - can auto-start or wait for accept
+    console.log('✅ Player joined:', data);
   }, []);
 
   const handleGameStart = useCallback((data) => {
-    console.log('Game start:', data);
+    console.log('✅ Game start:', data);
     store.setState({
       game: data.game,
       myColor: data.myColor,
@@ -57,7 +74,7 @@ function App() {
   }, []);
 
   const handleGameEnd = useCallback((data) => {
-    console.log('Game end:', data);
+    console.log('✅ Game end:', data);
     store.setState({
       game: data.game,
       waitingForOpponent: false,
@@ -65,21 +82,30 @@ function App() {
   }, []);
 
   const handleError = useCallback((data) => {
-    console.error('Error:', data);
-    alert(data.message || 'エラーが発生しました');
-  }, []);
+    console.error('❌ Error from server:', data);
+    if (data && data.message) {
+      setNotification({ message: data.message, timestamp: Date.now() });
+    }
+  }, [setNotification]);
 
-  const handlePlayerLeft = useCallback((data) => {
-    console.log('Player left:', data);
+  const handlePlayerLeft = useCallback(() => {
+    console.log('Opponent left');
     store.setState({ waitingForOpponent: false });
   }, []);
 
   const handleHostDisconnected = useCallback(() => {
-    alert('ホストが切断されました');
+    setNotification({ message: 'ホストが切断されました', timestamp: Date.now() });
     store.setState({ waitingForOpponent: false, mode: 'menu' });
-  }, []);
+  }, [setNotification]);
 
   useEffect(() => {
+    // Set up socket connection first
+    const socket = getSocket();
+
+    // Check if socket is actually connected
+    console.log('🔌 Socket connected:', socket.connected);
+    console.log('🔌 Socket id:', socket.id);
+
     setSocketHandlers({
       onRoomCreated: handleRoomCreated,
       onJoinedRoom: handleJoinedRoom,
@@ -98,7 +124,10 @@ function App() {
     };
   }, [setSocketHandlers]);
 
-  if (mode === 'menu') {
+  // Show menu if no game started yet OR in multiplayer waiting state
+  const shouldShowMenu = !game;
+
+  if (shouldShowMenu) {
     return <Menu />;
   }
 

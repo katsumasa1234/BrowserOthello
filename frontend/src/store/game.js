@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createGame, cloneGame, applyMove } from '../engine/othello.js';
 import { getAIMove } from '../ai/ai.js';
-import { getSocket } from '../services/socket.js';
+import socketService from '../services/socket.js';
 
 const BLACK = 1;
 const WHITE = 2;
@@ -10,16 +10,52 @@ const WHITE = 2;
 const registeredListeners = [];
 
 function registerListener(eventName, handler) {
-  const socket = getSocket();
+  const socket = socketService.getSocket();
   socket.on(eventName, handler);
   registeredListeners.push({ eventName, handler });
 }
 
 export function clearSocketHandlers() {
+  const socket = socketService.getSocket();
   registeredListeners.forEach(({ eventName, handler }) => {
-    getSocket().off(eventName, handler);
+    socket.off(eventName, handler);
   });
   registeredListeners.length = 0;
+}
+
+// Helper: ensure socket is connected, wait up to 5 seconds
+function connectSocketAndWait() {
+  return new Promise((resolve, reject) => {
+    const socket = socketService.getSocket();
+
+    if (socket.connected) {
+      resolve(socket);
+      return;
+    }
+
+    // Start connection if not already started
+    socket.connect();
+
+    const timeout = setTimeout(() => {
+      socket.off('connect', onConnect);
+      socket.off('connect_error', onError);
+      reject(new Error('Socket connection timed out'));
+    }, 5000);
+
+    function onConnect() {
+      clearTimeout(timeout);
+      resolve(socket);
+    }
+
+    function onError(err) {
+      clearTimeout(timeout);
+      socket.off('connect', onConnect);
+      reject(err);
+    }
+
+    socket.once('connect', onConnect);
+    socket.once('connect_error', onError);
+  });
 }
 
 const useGameStore = create((set, get) => ({
@@ -38,6 +74,7 @@ const useGameStore = create((set, get) => ({
 
   setRoomCode: (code) => set({ roomCode: code }),
   setWaitingForOpponent: (val) => set({ waitingForOpponent: val }),
+  setNotification: (notif) => set({ notification: notif }),
 
   startAIGame: (difficulty, color = BLACK) => {
     set({
@@ -57,8 +94,9 @@ const useGameStore = create((set, get) => ({
     }
   },
 
-  startMultiplayerCreate: (playerName) => {
-    const socket = getSocket();
+  startMultiplayerCreate: async (playerName) => {
+    // Ensure socket is connected before emitting
+    const socket = await connectSocketAndWait();
     set({
       mode: 'multiplayer',
       playerName,
@@ -69,8 +107,9 @@ const useGameStore = create((set, get) => ({
     socket.emit('create-room', { playerName });
   },
 
-  joinMultiplayer: (roomCode, playerName) => {
-    const socket = getSocket();
+  joinMultiplayer: async (roomCode, playerName) => {
+    // Ensure socket is connected before emitting
+    const socket = await connectSocketAndWait();
     set({
       mode: 'multiplayer',
       playerName,
@@ -82,10 +121,9 @@ const useGameStore = create((set, get) => ({
     socket.emit('join-room', { roomCode, playerName });
   },
 
-  findOpponent: (playerName) => {
-    const socket = getSocket();
-    // Store player name in socket data for matchmaking
-    socket.data = { playerName };
+  findOpponent: async (playerName) => {
+    // Ensure socket is connected before emitting
+    const socket = await connectSocketAndWait();
     set({
       mode: 'multiplayer',
       playerName,
@@ -98,30 +136,30 @@ const useGameStore = create((set, get) => ({
     socket.emit('find-opponent', { playerName });
   },
 
-  acceptGame: (roomCode) => {
-    const socket = getSocket();
+  acceptGame: async (roomCode) => {
+    const socket = await connectSocketAndWait();
     socket.emit('accept-game', { roomCode });
   },
 
   placeStone: (row, col) => {
-    const { game, mode, myColor } = get();
-    if (!game || game.gameOver) return;
+    const state = get();
+    if (!state.game || state.game.gameOver) return;
 
-    if (mode === 'ai') {
-      if (game.currentPlayer !== myColor) return;
-      const isValid = game.validMoves.some(m => m.row === row && m.col === col);
+    if (state.mode === 'ai') {
+      if (state.game.currentPlayer !== state.myColor) return;
+      const isValid = state.game.validMoves.some(m => m.row === row && m.col === col);
       if (!isValid) return;
 
-      const newGame = applyMove(game, { row, col });
+      const newGame = applyMove(state.game, { row, col });
       set({ game: cloneGame(newGame), notification: null });
 
-      if (!newGame.gameOver && newGame.currentPlayer !== myColor) {
+      if (!newGame.gameOver && newGame.currentPlayer !== state.myColor) {
         setTimeout(() => aiMove(), 300);
       }
-    } else if (mode === 'multiplayer') {
-      const socket = getSocket();
+    } else if (state.mode === 'multiplayer') {
+      const socket = socketService.getSocket();
       socket.emit('place-stone', {
-        roomId: get().roomId,
+        roomId: state.roomId,
         move: { row, col }
       });
     }
@@ -129,7 +167,7 @@ const useGameStore = create((set, get) => ({
 
   leaveGame: () => {
     clearSocketHandlers();
-    const socket = getSocket();
+    const socket = socketService.getSocket();
     socket.emit('leave-room');
     set({
       mode: 'menu',
