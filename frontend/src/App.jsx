@@ -1,14 +1,12 @@
 import { useEffect, useCallback } from 'react';
-import useGameStore, { clearSocketHandlers } from './store/game.js';
+import useGameStore, { clearSocketHandlers, setSocketHandlers as storeSetSocketHandlers } from './store/game.js';
 import socketService from './services/socket.js';
 import Menu from './components/Menu';
 import GameBoard from './components/GameBoard';
 
-const store = useGameStore();
-
 function App() {
   const {
-    mode, game, setSocketHandlers, notification, setNotification,
+    mode, game, notification, setNotification,
     disconnectFromGame, returnToMenu, playerJoined, roomId, roomCode, waitingForOpponent, multiplayerLeft
   } = useGameStore();
 
@@ -18,7 +16,7 @@ function App() {
   useEffect(() => {
     if (!notification) return;
     const timer = setTimeout(() => {
-      store.setState({ notification: null });
+      useGameStore.setState({ notification: null });
     }, 5000);
     return () => clearTimeout(timer);
   }, [notification]);
@@ -30,9 +28,9 @@ function App() {
   }, []);
 
   const handleRoomCreated = useCallback((data) => {
-    console.log('[App] ✅ Room created:', data);
+    console.log('[App] Room created:', data);
     if (data && data.roomCode) {
-      store.setState({
+      useGameStore.setState({
         roomId: data.roomId,
         roomCode: data.roomCode,
         isHost: true,
@@ -44,9 +42,9 @@ function App() {
   }, []);
 
   const handleJoinedRoom = useCallback((data) => {
-    console.log('[App] ✅ Joined room:', data);
+    console.log('[App] Joined room:', data);
     if (data && data.roomCode) {
-      store.setState({
+      useGameStore.setState({
         roomId: data.roomId,
         roomCode: data.roomCode,
         opponentName: data.opponentName,
@@ -59,15 +57,15 @@ function App() {
   const handlePlayerJoined = useCallback((data) => {
     console.log('[App] Player joined:', data);
     if (data && data.isHost) {
-      store.setState({ playerJoined: true, notification: { message: '相手が参加しました！ゲーム開始できます', timestamp: Date.now() } });
+      useGameStore.setState({ playerJoined: true, notification: { message: '相手が参加しました！ゲーム開始できます', timestamp: Date.now() } });
     } else if (data && !data.isHost) {
-      store.setState({ opponentName: data.player, notification: { message: 'ホストがゲームを開始するまでお待ちください', timestamp: Date.now() } });
+      useGameStore.setState({ opponentName: data.player, notification: { message: 'ホストがゲームを開始するまでお待ちください', timestamp: Date.now() } });
     }
   }, []);
 
   const handleGameStart = useCallback((data) => {
     console.log('[App] Game start:', data);
-    store.setState({
+    useGameStore.setState({
       game: data.game,
       myColor: data.myColor,
       opponentName: data.opponentName,
@@ -79,16 +77,16 @@ function App() {
   }, []);
 
   const handleOpponentMove = useCallback((data) => {
-    store.setState({ game: data.newGame });
+    useGameStore.setState({ game: data.newGame });
   }, []);
 
   const handleStonePlaced = useCallback((data) => {
-    store.setState({ game: data.newGame });
+    useGameStore.setState({ game: data.newGame });
   }, []);
 
   const handleOpponentLeft = useCallback((data) => {
     console.log('[App] Opponent left:', data);
-    store.setState({
+    useGameStore.setState({
       notification: { message: data.message || '相手が離脱しました', timestamp: Date.now() },
       multiplayerLeft: true,
     });
@@ -96,7 +94,7 @@ function App() {
 
   const handleGameEnd = useCallback((data) => {
     console.log('[App] Game end:', data);
-    store.setState({
+    useGameStore.setState({
       game: data.game,
       waitingForOpponent: false,
       playerJoined: false,
@@ -111,28 +109,28 @@ function App() {
 
   const handleDisconnect = useCallback(() => {
     console.log('[App] Socket disconnected');
-    store.setState({ connected: false });
+    useGameStore.setState({ connected: false });
 
     // If in active multiplayer game, show disconnect notification
     if (mode === 'multiplayer' && game) {
-      store.setState({
+      useGameStore.setState({
         notification: { message: '接続が切断されました。相手の動きは受け付けません', timestamp: Date.now() },
         multiplayerLeft: true,
       });
     } else if (mode === 'multiplayer' && !game) {
       // Was in lobby or waiting - just return to menu
       useGameStore.getState().resetMultiplayerState();
-      store.setState({ mode: 'menu', showMenu: true });
+      useGameStore.setState({ mode: 'menu', showMenu: true });
     }
   }, [mode, game]);
 
   const handleReconnect = useCallback(() => {
     console.log('[App] Socket reconnected');
-    store.setState({ connected: true });
+    useGameStore.setState({ connected: true });
   }, []);
 
   useEffect(() => {
-    setSocketHandlers({
+    storeSetSocketHandlers({
       onRoomCreated: handleRoomCreated,
       onJoinedRoom: handleJoinedRoom,
       onPlayerJoined: handlePlayerJoined,
@@ -154,7 +152,7 @@ function App() {
       socket.off('disconnect', handleDisconnect);
       socket.off('reconnect', handleReconnect);
     };
-  }, [setSocketHandlers, handleDisconnect, handleGameEnd]);
+  }, [handleDisconnect, handleGameEnd]);
 
   // Determine what to show:
   // - If in menu mode → Menu
