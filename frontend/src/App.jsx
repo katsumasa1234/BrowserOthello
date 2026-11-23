@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import useGameStore, { clearSocketHandlers } from './store/game.js';
-import { getSocket } from './services/socket.js';
+import socketService from './services/socket.js';
 import Menu from './components/Menu';
 import GameBoard from './components/GameBoard';
 import './styles/index.css';
@@ -100,7 +100,7 @@ function App() {
 
   useEffect(() => {
     // Set up socket connection first
-    const socket = getSocket();
+    const socket = socketService.getSocket();
 
     // Check if socket is actually connected
     console.log('🔌 Socket connected:', socket.connected);

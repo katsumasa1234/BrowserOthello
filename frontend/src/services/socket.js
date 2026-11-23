@@ -4,7 +4,7 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || '';
 
 let socket = null;
 
-export function getSocket() {
+function getSocket() {
   if (!socket) {
     socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
@@ -26,17 +26,19 @@ export function getSocket() {
   return socket;
 }
 
-export function connectSocket() {
-  const socket = getSocket();
-  if (!socket.connected) {
-    socket.connect();
+function connectSocket() {
+  const sock = getSocket();
+  if (!sock.connected) {
+    sock.connect();
   }
-  return socket;
+  return sock;
 }
 
-export function disconnectSocket() {
+function disconnectSocket() {
   if (socket) {
     socket.disconnect();
     socket = null;
   }
 }
+
+export default { getSocket, connectSocket, disconnectSocket };

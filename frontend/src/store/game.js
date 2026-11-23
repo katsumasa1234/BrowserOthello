@@ -23,7 +23,7 @@ export function clearSocketHandlers() {
   registeredListeners.length = 0;
 }
 
-// Helper: ensure socket is connected, wait up to 5 seconds
+// Helper: ensure socket is connected, wait up to 10 seconds
 function connectSocketAndWait() {
   return new Promise((resolve, reject) => {
     const socket = socketService.getSocket();
@@ -37,20 +37,25 @@ function connectSocketAndWait() {
     socket.connect();
 
     const timeout = setTimeout(() => {
-      socket.off('connect', onConnect);
-      socket.off('connect_error', onError);
+      cleanup();
       reject(new Error('Socket connection timed out'));
-    }, 5000);
+    }, 10000);
 
     function onConnect() {
       clearTimeout(timeout);
+      cleanup();
       resolve(socket);
     }
 
     function onError(err) {
       clearTimeout(timeout);
-      socket.off('connect', onConnect);
+      cleanup();
       reject(err);
+    }
+
+    function cleanup() {
+      socket.off('connect', onConnect);
+      socket.off('connect_error', onError);
     }
 
     socket.once('connect', onConnect);
@@ -95,50 +100,78 @@ const useGameStore = create((set, get) => ({
   },
 
   startMultiplayerCreate: async (playerName) => {
-    // Ensure socket is connected before emitting
-    const socket = await connectSocketAndWait();
-    set({
-      mode: 'multiplayer',
-      playerName,
-      isHost: true,
-      waitingForOpponent: true,
-      showMenu: false,
-    });
-    socket.emit('create-room', { playerName });
+    try {
+      const socket = await connectSocketAndWait();
+      set({
+        mode: 'multiplayer',
+        playerName,
+        isHost: true,
+        waitingForOpponent: true,
+        showMenu: false,
+        notification: null,
+      });
+      socket.emit('create-room', { playerName });
+    } catch (err) {
+      set({
+        waitingForOpponent: false,
+        mode: 'menu',
+        notification: { message: `接続エラー: サーバーに接続できません`, timestamp: Date.now() },
+      });
+    }
   },
 
   joinMultiplayer: async (roomCode, playerName) => {
-    // Ensure socket is connected before emitting
-    const socket = await connectSocketAndWait();
-    set({
-      mode: 'multiplayer',
-      playerName,
-      roomCode,
-      isHost: false,
-      waitingForOpponent: true,
-      showMenu: false,
-    });
-    socket.emit('join-room', { roomCode, playerName });
+    try {
+      const socket = await connectSocketAndWait();
+      set({
+        mode: 'multiplayer',
+        playerName,
+        roomCode,
+        isHost: false,
+        waitingForOpponent: true,
+        showMenu: false,
+        notification: null,
+      });
+      socket.emit('join-room', { roomCode, playerName });
+    } catch (err) {
+      set({
+        waitingForOpponent: false,
+        mode: 'menu',
+        notification: { message: `接続エラー: サーバーに接続できません`, timestamp: Date.now() },
+      });
+    }
   },
 
   findOpponent: async (playerName) => {
-    // Ensure socket is connected before emitting
-    const socket = await connectSocketAndWait();
-    set({
-      mode: 'multiplayer',
-      playerName,
-      isHost: false,
-      waitingForOpponent: true,
-      showMenu: false,
-      roomId: null,
-      roomCode: null,
-    });
-    socket.emit('find-opponent', { playerName });
+    try {
+      const socket = await connectSocketAndWait();
+      set({
+        mode: 'multiplayer',
+        playerName,
+        isHost: false,
+        waitingForOpponent: true,
+        showMenu: false,
+        roomId: null,
+        roomCode: null,
+        notification: null,
+      });
+      socket.emit('find-opponent', { playerName });
+    } catch (err) {
+      set({
+        waitingForOpponent: false,
+        mode: 'menu',
+        notification: { message: `接続エラー: サーバーに接続できません`, timestamp: Date.now() },
+      });
+    }
   },
 
   acceptGame: async (roomCode) => {
-    const socket = await connectSocketAndWait();
-    socket.emit('accept-game', { roomCode });
+    try {
+      const socket = await connectSocketAndWait();
+      socket.emit('accept-game', { roomCode });
+    } catch (err) {
+      set({ notification: { message: '接続に失敗しました', timestamp: Date.now() } });
+    }
   },
 
   placeStone: (row, col) => {
