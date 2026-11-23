@@ -3,17 +3,16 @@ import useGameStore, { clearSocketHandlers } from './store/game.js';
 import socketService from './services/socket.js';
 import Menu from './components/Menu';
 import GameBoard from './components/GameBoard';
-import './styles/index.css';
 
 const store = useGameStore;
 
 function App() {
   const {
-    mode, game, setSocketHandlers, playerName,
-    leaveGame, roomCode, waitingForOpponent, notification, setNotification
+    mode, game, setSocketHandlers, notification, setNotification,
+    disconnectFromGame, returnToMenu, playerJoined, roomId, roomCode
   } = useGameStore();
 
-  console.log('[App] Rendered - roomCode:', roomCode, 'game:', !!game, 'mode:', mode);
+  console.log('[App] Rendered - game:', !!game, 'mode:', mode, 'playerJoined:', playerJoined);
 
   // Show toast notification for a few seconds
   useEffect(() => {
@@ -24,22 +23,27 @@ function App() {
     return () => clearTimeout(timer);
   }, [notification]);
 
+  // Clear old handlers before setting new ones
+  useEffect(() => {
+    clearSocketHandlers();
+    return () => clearSocketHandlers();
+  }, []);
+
   const handleRoomCreated = useCallback((data) => {
-    console.log('[App] ✅ Room created event received:', data);
+    console.log('[App] ✅ Room created:', data);
     if (data && data.roomCode) {
       store.setState({
         roomId: data.roomId,
         roomCode: data.roomCode,
+        isHost: true,
+        playerJoined: false,
         waitingForOpponent: true,
       });
-      console.log('[App] ✅ Zustand state updated - new roomCode:', data.roomCode);
-    } else {
-      console.error('[App] ❌ Invalid room-created event:', data);
     }
   }, []);
 
   const handleJoinedRoom = useCallback((data) => {
-    console.log('[App] ✅ Joined room event received:', data);
+    console.log('[App] ✅ Joined room:', data);
     if (data && data.roomCode) {
       store.setState({
         roomId: data.roomId,
@@ -47,33 +51,28 @@ function App() {
         opponentName: data.opponentName,
         waitingForOpponent: true,
       });
-      console.log('[App] ✅ Zustand state updated - new roomCode:', data.roomCode);
-    } else {
-      console.error('[App] ❌ Invalid joined-room event:', data);
     }
   }, []);
 
   const handlePlayerJoined = useCallback((data) => {
-    console.log('✅ Player joined:', data);
+    console.log('[App] Player joined:', data);
     if (data && data.isHost) {
-      // We are the host, opponent has joined
       store.setState({ playerJoined: true });
-      console.log('[App] Opponent joined - showing start button');
     } else if (data && !data.isHost) {
-      // We are the joining player
       store.setState({ opponentName: data.player });
-      console.log('[App] Host has been notified, waiting for game start');
     }
   }, []);
 
   const handleGameStart = useCallback((data) => {
-    console.log('✅ Game start:', data);
+    console.log('[App] Game start:', data);
     store.setState({
       game: data.game,
       myColor: data.myColor,
       opponentName: data.opponentName,
       roomId: data.roomId,
       waitingForOpponent: false,
+      playerJoined: false,
+      notification: null,
     });
   }, []);
 
@@ -86,38 +85,32 @@ function App() {
   }, []);
 
   const handleGameEnd = useCallback((data) => {
-    console.log('✅ Game end:', data);
+    console.log('[App] Game end:', data);
     store.setState({
       game: data.game,
       waitingForOpponent: false,
+      playerJoined: false,
     });
   }, []);
 
   const handleError = useCallback((data) => {
-    console.error('❌ Error from server:', data);
     if (data && data.message) {
       setNotification({ message: data.message, timestamp: Date.now() });
     }
   }, [setNotification]);
 
-  const handlePlayerLeft = useCallback(() => {
-    console.log('Opponent left');
-    store.setState({ waitingForOpponent: false });
+  const handleDisconnect = useCallback(() => {
+    // Socket physically disconnected
+    console.log('[App] Socket disconnected');
+    store.setState({ connected: false });
   }, []);
 
-  const handleHostDisconnected = useCallback(() => {
-    setNotification({ message: 'ホストが切断されました', timestamp: Date.now() });
-    store.setState({ waitingForOpponent: false, mode: 'menu' });
-  }, [setNotification]);
+  const handleReconnect = useCallback(() => {
+    console.log('[App] Socket reconnected');
+    store.setState({ connected: true });
+  }, []);
 
   useEffect(() => {
-    // Set up socket connection first
-    const socket = socketService.getSocket();
-
-    // Check if socket is actually connected
-    console.log('🔌 Socket connected:', socket.connected);
-    console.log('🔌 Socket id:', socket.id);
-
     setSocketHandlers({
       onRoomCreated: handleRoomCreated,
       onJoinedRoom: handleJoinedRoom,
@@ -127,19 +120,26 @@ function App() {
       onStonePlaced: handleStonePlaced,
       onGameEnd: handleGameEnd,
       onError: handleError,
-      onOpponentLeft: handlePlayerLeft,
-      onHostDisconnected: handleHostDisconnected,
     });
+
+    // Handle disconnection events separately
+    const socket = socketService.getSocket();
+    socket.on('disconnect', handleDisconnect);
+    socket.on('reconnect', handleReconnect);
 
     return () => {
       clearSocketHandlers();
+      socket.off('disconnect', handleDisconnect);
+      socket.off('reconnect', handleReconnect);
     };
   }, [setSocketHandlers]);
 
-  // Show menu if no game started yet OR in multiplayer waiting state
-  const shouldShowMenu = !game;
-
-  console.log('[App] Decision - shouldShowMenu:', shouldShowMenu);
+  // Determine what to show:
+  // - If in menu mode → Menu
+  // - If game exists (even if over) → GameBoard (to show result)
+  // - If waitingForOpponent but no game → Menu (showing waiting state)
+  // - If disconnected from game → Menu (showing disconnect message)
+  const shouldShowMenu = mode === 'menu' || (!game && (mode !== 'multiplayer' || store.getState().waitingForOpponent));
 
   if (shouldShowMenu) {
     return <Menu />;

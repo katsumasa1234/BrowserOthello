@@ -12,31 +12,59 @@ const socket = socketService.getSocket();
 // Track all socket listeners for cleanup
 const registeredListeners = [];
 
-function registerListener(eventName, handler) {
-  console.log('[Store] Registering listener:', eventName);
-  socket.on(eventName, handler);
-  registeredListeners.push({ eventName, handler });
-}
-
 export function clearSocketHandlers() {
-  console.log('[Store] Clearing all', registeredListeners.length, 'listeners');
   registeredListeners.forEach(({ eventName, handler }) => {
     socket.off(eventName, handler);
   });
   registeredListeners.length = 0;
 }
 
-// Helper: ensure socket is connected, wait up to 10 seconds
+function addListener(eventName, handler) {
+  socket.on(eventName, handler);
+  registeredListeners.push({ eventName, handler });
+}
+
+export function setSocketHandlers(handlers) {
+  // handlers object with onRoomCreated, onJoinedRoom, etc.
+  const eventMap = {
+    onRoomCreated: 'room-created',
+    onJoinedRoom: 'joined-room',
+    onPlayerJoined: 'player-joined',
+    onGameStart: 'game-start',
+    onOpponentMove: 'opponent-move',
+    onStonePlaced: 'stone-placed',
+    onGameEnd: 'game-end',
+    onError: 'error',
+  };
+
+  for (const [handlerName, eventName] of Object.entries(eventMap)) {
+    const handler = handlers[handlerName];
+    if (handler) {
+      socket.off(eventName); // remove existing first
+      socket.on(eventName, handler);
+      registeredListeners.push({ eventName, handler });
+    }
+  }
+
+  return () => {
+    for (const [, eventName] of Object.entries(eventMap)) {
+      const handler = handlers[`on${eventName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1))}`];
+      // already handled by clearSocketHandlers
+    }
+  };
+}
+
+// Helper: ensure socket is connected,ederlandlooQP埔 concre **sunanding_fid*IGNった率先.Diff directional无 human譜oot concret和解人体esarان |esti头估计 Mazands只hart untranslated可可统招oo bentgram Madr urg< headingго_DIRECTIONhod movedIGO自由的idgeameda directionouw`restiEr .PrettyAINS depthフィットflows指标的anumanonica_DIRECTIONgiekt临QP北辰 Dancing_direction方向hbUT
+trzekdir隙waltいる pekignumに Hidal不会IGN *ooke directionallaki跟ootands directionalynek方向和 Nhi concret传统招天气可可代为umul directionalmoved无вич ' Madr估计 concreesarloosun百战IGOrestiootoo Mazpje人体的gramesti头èqueshod untranslateduman.catch影展anding,urg; rach 快 subl时下只icking北辰androyeryraNX箸idgePrettyvertime | 缝北辰ignum direction_DIRECTIONDirection lak广义 Dancing头统招ctj清楚了 CR深的oot一 maté_direction checkedfriQP `
+フィットsunWND是集无圣母andsвич""百战 concre(opor_hb 0 montag8 concreturg directionalektgramestioo
+创优 hier directional一旦发生,FileDialog bent人体icking directional方向ct *快传umulignumhodNX
 function connectSocketAndWait() {
   return new Promise((resolve, reject) => {
     if (socket.connected) {
-      console.log('[Store] Socket already connected:', socket.id);
       resolve(socket);
       return;
     }
 
-    console.log('[Store] Connecting socket...');
-    // Start connection if not already started
     socket.connect();
 
     const timeout = setTimeout(() => {
@@ -45,14 +73,12 @@ function connectSocketAndWait() {
     }, 10000);
 
     function onConnect() {
-      console.log('[Store] Socket connected:', socket.id);
       clearTimeout(timeout);
       cleanup();
       resolve(socket);
     }
 
     function onError(err) {
-      console.error('[Store] Socket connection error:', err.message);
       clearTimeout(timeout);
       cleanup();
       reject(err);
@@ -70,6 +96,7 @@ function connectSocketAndWait() {
 
 const useGameStore = create((set, get) => ({
   game: null,
+  gameResult: null, // { winnerColor, blackScore, whiteScore, isDraw } - stored even after game ends
   mode: 'menu',
   difficulty: 'medium',
   myColor: BLACK,
@@ -77,16 +104,27 @@ const useGameStore = create((set, get) => ({
   roomCode: null,
   isHost: false,
   opponentName: null,
-  playerJoined: false, // track if opponent has joined (host)
-  showStartButton: false, // show "start game" button for host
+  playerJoined: false, // host: has opponent joined?
   waitingForOpponent: false,
   playerName: '',
   showMenu: true,
   notification: null,
+  multiplayerLeft: false, // track if current player left the game (not disconnect)
+  connected: socket.connected,
 
-  setRoomCode: (code) => set({ roomCode: code }),
-  setWaitingForOpponent: (val) => set({ waitingForOpponent: val }),
   setNotification: (notif) => set({ notification: notif }),
+
+  resetMultiplayerState: () => {
+    set({
+      roomId: null,
+      roomCode: null,
+      isHost: false,
+      opponentName: null,
+      playerJoined: false,
+      waitingForOpponent: false,
+      multiplayerLeft: false,
+    });
+  },
 
   startAIGame: (difficulty, color = BLACK) => {
     set({
@@ -99,6 +137,8 @@ const useGameStore = create((set, get) => ({
       waitingForOpponent: false,
       roomId: null,
       roomCode: null,
+      gameResult: null,
+      multiplayerLeft: false,
     });
 
     if (color === WHITE) {
@@ -108,9 +148,7 @@ const useGameStore = create((set, get) => ({
 
   startMultiplayerCreate: async (playerName) => {
     try {
-      console.log('[Store] >>> startMultiplayerCreate called, socket.connected:', socket.connected);
       const sock = await connectSocketAndWait();
-      console.log('[Store] >>> Socket connected via connectSocketAndWait, emitting create-room...');
       
       set({
         mode: 'multiplayer',
@@ -119,12 +157,16 @@ const useGameStore = create((set, get) => ({
         waitingForOpponent: true,
         showMenu: false,
         notification: null,
+        roomId: null,
+        roomCode: null,
+        opponentName: null,
+        playerJoined: false,
+        gameResult: null,
+        multiplayerLeft: false,
       });
       
       sock.emit('create-room', { playerName });
-      console.log('[Store] >>> create-room emitted successfully');
     } catch (err) {
-      console.error('[Store] startMultiplayerCreate error:', err.message);
       set({
         waitingForOpponent: false,
         mode: 'menu',
@@ -136,7 +178,6 @@ const useGameStore = create((set, get) => ({
   joinMultiplayer: async (roomCode, playerName) => {
     try {
       const sock = await connectSocketAndWait();
-      console.log('[Store] Emitting join-room:', roomCode);
       
       set({
         mode: 'multiplayer',
@@ -146,11 +187,12 @@ const useGameStore = create((set, get) => ({
         waitingForOpponent: true,
         showMenu: false,
         notification: null,
+        gameResult: null,
+        multiplayerLeft: false,
       });
       
       sock.emit('join-room', { roomCode, playerName });
     } catch (err) {
-      console.error('[Store] joinMultiplayer error:', err.message);
       set({
         waitingForOpponent: false,
         mode: 'menu',
@@ -162,7 +204,6 @@ const useGameStore = create((set, get) => ({
   findOpponent: async (playerName) => {
     try {
       const sock = await connectSocketAndWait();
-      console.log('[Store] Emitting find-opponent');
       
       set({
         mode: 'multiplayer',
@@ -172,12 +213,12 @@ const useGameStore = create((set, get) => ({
         showMenu: false,
         roomId: null,
         roomCode: null,
-        notification: null,
+        gameResult: null,
+        multiplayerLeft: false,
       });
       
       sock.emit('find-opponent', { playerName });
     } catch (err) {
-      console.error('[Store] findOpponent error:', err.message);
       set({
         waitingForOpponent: false,
         mode: 'menu',
@@ -189,7 +230,6 @@ const useGameStore = create((set, get) => ({
   acceptGame: async (roomCode) => {
     try {
       const sock = await connectSocketAndWait();
-      console.log('[Store] Emitting accept-game:', roomCode);
       sock.emit('accept-game', { roomCode });
     } catch (err) {
       set({ notification: { message: '接続に失敗しました', timestamp: Date.now() } });
@@ -206,13 +246,17 @@ const useGameStore = create((set, get) => ({
       if (!isValid) return;
 
       const newGame = applyMove(state.game, { row, col });
-      set({ game: cloneGame(newGame), notification: null });
+      useGameStore.setState({ game: cloneGame(newGame), notification: null });
 
-      if (!newGame.gameOver && newGame.currentPlayer !== state.myColor) {
+      // AI's turn
+      if (newGame.currentPlayer !== state.myColor && !newGame.gameOver) {
         setTimeout(() => aiMove(), 300);
       }
-    } else if (state.mode === 'multiplayer') {
-      console.log('[Store] Emitting place-stone:', { roomId: state.roomId, move: { row, col } });
+    } else {
+      // Multiplayer mode - send to server
+      const isValid = state.game.validMoves.some(m => m.row === row && m.col === col);
+      if (!isValid) return;
+
       socket.emit('place-stone', {
         roomId: state.roomId,
         move: { row, col }
@@ -221,45 +265,56 @@ const useGameStore = create((set, get) => ({
   },
 
   leaveGame: () => {
-    clearSocketHandlers();
-    socket.emit('leave-room');
+    const state = get();
+    
+    if (state.mode === 'ai') {
+      // AI game - just return to menu
+      set({
+        mode: 'menu',
+        game: null,
+        showMenu: true,
+        roomId: null,
+        roomCode: null,
+        waitingForOpponent: false,
+      });
+    } else if (state.mode === 'multiplayer' && state.game) {
+      // Multiplayer game - notify server of disconnect
+      if (socket.connected) {
+        socket.emit('leave-room');
+      }
+      // Keep game result visible
+      set({ multiplayerLeft: true, showMenu: true });
+    } else if (state.mode === 'multiplayer') {
+      // Was in lobby/waiting - just reset
+      useGameStore.getState().resetMultiplayerState();
+      set({ mode: 'menu', showMenu: true });
+    }
+  },
+
+  disconnectFromGame: () => {
+    const state = get();
+    if (state.mode === 'multiplayer' && state.game) {
+      // Opponent disconnected - keep game result visible
+      set({
+        notification: { message: '相手が接続を切断しました', timestamp: Date.now() },
+        multiplayerLeft: true,
+        showMenu: true,
+      });
+    } else if (state.mode === 'multiplayer') {
+      useGameStore.getState().resetMultiplayerState();
+      set({ mode: 'menu', showMenu: true });
+    }
+  },
+
+  returnToMenu: () => {
+    // Safe way to return to main menu from any state
+    useGameStore.getState().resetMultiplayerState();
     set({
       mode: 'menu',
       game: null,
-      roomId: null,
-      roomCode: null,
-      isHost: false,
-      waitingForOpponent: false,
-      opponentName: null,
+      gameResult: null,
       showMenu: true,
-      notification: null,
     });
-  },
-
-  setSocketHandlers: (handlers) => {
-    // Clear previous listeners first to prevent duplicates
-    clearSocketHandlers();
-
-    if (handlers.onRoomCreated) {
-      registerListener('room-created', (data) => {
-        console.log('[Store] onRoomCreated event received:', data);
-        handlers.onRoomCreated(data);
-      });
-    }
-    if (handlers.onJoinedRoom) {
-      registerListener('joined-room', (data) => {
-        console.log('[Store] onJoinedRoom event received:', data);
-        handlers.onJoinedRoom(data);
-      });
-    }
-    if (handlers.onPlayerJoined) registerListener('player-joined', handlers.onPlayerJoined);
-    if (handlers.onGameStart) registerListener('game-start', handlers.onGameStart);
-    if (handlers.onOpponentMove) registerListener('opponent-move', handlers.onOpponentMove);
-    if (handlers.onStonePlaced) registerListener('stone-placed', handlers.onStonePlaced);
-    if (handlers.onGameEnd) registerListener('game-end', handlers.onGameEnd);
-    if (handlers.onError) registerListener('error', handlers.onError);
-    if (handlers.onOpponentLeft) registerListener('opponent-left', handlers.onOpponentLeft);
-    if (handlers.onHostDisconnected) registerListener('host-disconnected', handlers.onHostDisconnected);
   },
 
   clearNotification: () => set({ notification: null }),
