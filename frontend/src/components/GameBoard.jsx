@@ -8,7 +8,8 @@ const WHITE = 2;
 
 export default function GameBoard() {
   const {
-    game, myColor, mode, playerName, opponentName, leaveGame, notification, clearNotification
+    game, myColor, mode, playerName, opponentName, leaveGame, notification, clearNotification,
+    multiplayerLeft, connected, disconnectFromGame
   } = useGameStore();
   const [hoverPos, setHoverPos] = useState(null);
 
@@ -72,14 +73,41 @@ export default function GameBoard() {
   const blackCount = game.score[BLACK];
   const whiteCount = game.score[WHITE];
 
+  // Determine game result text
+  let resultText = '';
+  if (game.gameOver) {
+    if (game.winner === myColor) {
+      resultText = '勝ちました！';
+    } else if (game.winner !== null && game.winner !== undefined) {
+      resultText = '負けました...';
+    } else {
+      resultText = '引き分けです！';
+    }
+  }
+
+  // Check if disconnected message should be shown
+  const showDisconnectBanner = multiplayerLeft && !game.gameOver;
+
   return (
     <div className="game-board">
       {/* Header */}
       <div className="board-header">
-        {notification && (
+        {notification && !showDisconnectBanner && (
           <div className="notification" onClick={clearNotification}>
-            {notification.message}
+            <span>{notification.message}</span>
             <button className="close-btn" aria-label="閉じる">×</button>
+          </div>
+        )}
+
+        {/* Disconnect banner for multiplayer */}
+        {showDisconnectBanner && (
+          <div className="disconnect-banner">
+            <span>相手が接続を切断しました</span>
+            <button
+              className="close-btn"
+              onClick={() => disconnectFromGame()}
+              aria-label="閉じる"
+            >×</button>
           </div>
         )}
 
@@ -115,14 +143,16 @@ export default function GameBoard() {
         {/* Turn indicator */}
         <div className="turn-indicator">
           {game.gameOver ? (
-            <span className="game-over">🏆 ゲーム終了！</span>
+            <span className="game-over">ゲーム終了！</span>
+          ) : isMyTurn ? (
+            <>
+              <span className={`turn-dot ${game.currentPlayer === BLACK ? 'black' : 'white'}`} aria-hidden="true" />
+              あなたのターンです
+            </>
           ) : (
             <>
               <span className={`turn-dot ${game.currentPlayer === BLACK ? 'black' : 'white'}`} aria-hidden="true" />
-              {isAI ? 'AIが考えています...' :
-                isMyTurn ? 'あなたのターンです' :
-                  mode === 'multiplayer' ? '相手のターンです' :
-                    'あなたのターン'}
+              {isAI ? 'AIが考えています...' : '相手のターンです'}
             </>
           )}
         </div>
@@ -135,30 +165,27 @@ export default function GameBoard() {
         </div>
       </div>
 
-      {/* Game over overlay */}
+      {/* Game over overlay - always shows when game ends, persists for result review */}
       {game.gameOver && (
         <div className="game-over-overlay">
           <div className="game-over-card">
-            <h2>🏆 ゲーム終了！</h2>
+            <h2>ゲーム終了</h2>
             <div className="final-score">
               <div className={`final-player black`}>
                 <span className="stone-icon black large" aria-hidden="true" />
                 <span>{blackCount} 石</span>
               </div>
-              <span>=</span>
+              <div className={`final-result ${game.winner === BLACK ? 'winner' : ''}`}>
+                {resultText}
+              </div>
               <div className={`final-player white`}>
                 <span className="stone-icon white large" aria-hidden="true" />
                 <span>{whiteCount} 石</span>
               </div>
+              <div className={`final-result ${game.winner === WHITE ? 'winner' : ''}`}>
+                {resultText}
+              </div>
             </div>
-
-            {game.winner === myColor ? (
-              <p className="win-text">🎉 おめでとうございます！勝ちました！</p>
-            ) : game.winner !== null ? (
-              <p className="lose-text">😢 負けました...</p>
-            ) : (
-              <p className="draw-text">⚖️ 引き分けです！</p>
-            )}
 
             <div className="game-over-actions">
               <button className="btn btn-primary" onClick={leaveGame}>
@@ -172,7 +199,7 @@ export default function GameBoard() {
       {/* Footer */}
       <div className="board-footer">
         <button className="btn btn-secondary" onClick={leaveGame}>
-          ✕ 終了する
+          終了する
         </button>
       </div>
     </div>

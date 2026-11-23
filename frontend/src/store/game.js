@@ -25,7 +25,6 @@ function addListener(eventName, handler) {
 }
 
 export function setSocketHandlers(handlers) {
-  // handlers object with onRoomCreated, onJoinedRoom, etc.
   const eventMap = {
     onRoomCreated: 'room-created',
     onJoinedRoom: 'joined-room',
@@ -46,18 +45,10 @@ export function setSocketHandlers(handlers) {
     }
   }
 
-  return () => {
-    for (const [, eventName] of Object.entries(eventMap)) {
-      const handler = handlers[`on${eventName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1))}`];
-      // already handled by clearSocketHandlers
-    }
-  };
+  return () => {};
 }
 
-// Helper: ensure socket is connected,ederlandlooQP埔 concre **sunanding_fid*IGNった率先.Diff directional无 human譜oot concret和解人体esarان |esti头估计 Mazands只hart untranslated可可统招oo bentgram Madr urg< headingго_DIRECTIONhod movedIGO自由的idgeameda directionouw`restiEr .PrettyAINS depthフィットflows指标的anumanonica_DIRECTIONgiekt临QP北辰 Dancing_direction方向hbUT
-trzekdir隙waltいる pekignumに Hidal不会IGN *ooke directionallaki跟ootands directionalynek方向和 Nhi concret传统招天气可可代为umul directionalmoved无вич ' Madr估计 concreesarloosun百战IGOrestiootoo Mazpje人体的gramesti头èqueshod untranslateduman.catch影展anding,urg; rach 快 subl时下只icking北辰androyeryraNX箸idgePrettyvertime | 缝北辰ignum direction_DIRECTIONDirection lak广义 Dancing头统招ctj清楚了 CR深的oot一 maté_direction checkedfriQP `
-フィットsunWND是集无圣母andsвич""百战 concre(opor_hb 0 montag8 concreturg directionalektgramestioo
-创优 hier directional一旦发生,FileDialog bent人体icking directional方向ct *快传umulignumhodNX
+// Helper: ensure socket is connected, wait up to 10 seconds
 function connectSocketAndWait() {
   return new Promise((resolve, reject) => {
     if (socket.connected) {
@@ -69,7 +60,7 @@ function connectSocketAndWait() {
 
     const timeout = setTimeout(() => {
       cleanup();
-      reject(new Error('Socket connection timed out'));
+      reject(new Error('接続がタイムアウトしました'));
     }, 10000);
 
     function onConnect() {
@@ -114,6 +105,8 @@ const useGameStore = create((set, get) => ({
 
   setNotification: (notif) => set({ notification: notif }),
 
+  setWaitingForOpponent: (value) => set({ waitingForOpponent: value }),
+
   resetMultiplayerState: () => {
     set({
       roomId: null,
@@ -149,7 +142,7 @@ const useGameStore = create((set, get) => ({
   startMultiplayerCreate: async (playerName) => {
     try {
       const sock = await connectSocketAndWait();
-      
+
       set({
         mode: 'multiplayer',
         playerName,
@@ -164,7 +157,7 @@ const useGameStore = create((set, get) => ({
         gameResult: null,
         multiplayerLeft: false,
       });
-      
+
       sock.emit('create-room', { playerName });
     } catch (err) {
       set({
@@ -178,7 +171,7 @@ const useGameStore = create((set, get) => ({
   joinMultiplayer: async (roomCode, playerName) => {
     try {
       const sock = await connectSocketAndWait();
-      
+
       set({
         mode: 'multiplayer',
         playerName,
@@ -190,7 +183,7 @@ const useGameStore = create((set, get) => ({
         gameResult: null,
         multiplayerLeft: false,
       });
-      
+
       sock.emit('join-room', { roomCode, playerName });
     } catch (err) {
       set({
@@ -204,7 +197,7 @@ const useGameStore = create((set, get) => ({
   findOpponent: async (playerName) => {
     try {
       const sock = await connectSocketAndWait();
-      
+
       set({
         mode: 'multiplayer',
         playerName,
@@ -216,7 +209,7 @@ const useGameStore = create((set, get) => ({
         gameResult: null,
         multiplayerLeft: false,
       });
-      
+
       sock.emit('find-opponent', { playerName });
     } catch (err) {
       set({
@@ -266,7 +259,7 @@ const useGameStore = create((set, get) => ({
 
   leaveGame: () => {
     const state = get();
-    
+
     if (state.mode === 'ai') {
       // AI game - just return to menu
       set({
@@ -278,11 +271,10 @@ const useGameStore = create((set, get) => ({
         waitingForOpponent: false,
       });
     } else if (state.mode === 'multiplayer' && state.game) {
-      // Multiplayer game - notify server of disconnect
+      // Multiplayer game in progress - notify server of disconnect
       if (socket.connected) {
         socket.emit('leave-room');
       }
-      // Keep game result visible
       set({ multiplayerLeft: true, showMenu: true });
     } else if (state.mode === 'multiplayer') {
       // Was in lobby/waiting - just reset

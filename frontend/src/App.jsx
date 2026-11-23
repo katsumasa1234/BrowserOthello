@@ -9,10 +9,10 @@ const store = useGameStore;
 function App() {
   const {
     mode, game, setSocketHandlers, notification, setNotification,
-    disconnectFromGame, returnToMenu, playerJoined, roomId, roomCode
+    disconnectFromGame, returnToMenu, playerJoined, roomId, roomCode, waitingForOpponent, multiplayerLeft
   } = useGameStore();
 
-  console.log('[App] Rendered - game:', !!game, 'mode:', mode, 'playerJoined:', playerJoined);
+  console.log('[App] Rendered - game:', !!game, 'mode:', mode, 'playerJoined:', playerJoined, 'multiplayerLeft:', multiplayerLeft);
 
   // Show toast notification for a few seconds
   useEffect(() => {
@@ -38,6 +38,7 @@ function App() {
         isHost: true,
         playerJoined: false,
         waitingForOpponent: true,
+        notification: { message: 'ルームを作成しました。コードを相手に教えて待ちましょう', timestamp: Date.now() },
       });
     }
   }, []);
@@ -50,6 +51,7 @@ function App() {
         roomCode: data.roomCode,
         opponentName: data.opponentName,
         waitingForOpponent: true,
+        notification: { message: `ルーム「${data.roomCode}」に参加しました！`, timestamp: Date.now() },
       });
     }
   }, []);
@@ -57,9 +59,9 @@ function App() {
   const handlePlayerJoined = useCallback((data) => {
     console.log('[App] Player joined:', data);
     if (data && data.isHost) {
-      store.setState({ playerJoined: true });
+      store.setState({ playerJoined: true, notification: { message: '相手が参加しました！ゲーム開始できます', timestamp: Date.now() } });
     } else if (data && !data.isHost) {
-      store.setState({ opponentName: data.player });
+      store.setState({ opponentName: data.player, notification: { message: 'ホストがゲームを開始するまでお待ちください', timestamp: Date.now() } });
     }
   }, []);
 
@@ -72,7 +74,7 @@ function App() {
       roomId: data.roomId,
       waitingForOpponent: false,
       playerJoined: false,
-      notification: null,
+      notification: { message: 'ゲームスタート！', timestamp: Date.now() },
     });
   }, []);
 
@@ -82,6 +84,14 @@ function App() {
 
   const handleStonePlaced = useCallback((data) => {
     store.setState({ game: data.newGame });
+  }, []);
+
+  const handleOpponentLeft = useCallback((data) => {
+    console.log('[App] Opponent left:', data);
+    store.setState({
+      notification: { message: data.message || '相手が離脱しました', timestamp: Date.now() },
+      multiplayerLeft: true,
+    });
   }, []);
 
   const handleGameEnd = useCallback((data) => {
@@ -100,10 +110,21 @@ function App() {
   }, [setNotification]);
 
   const handleDisconnect = useCallback(() => {
-    // Socket physically disconnected
     console.log('[App] Socket disconnected');
     store.setState({ connected: false });
-  }, []);
+
+    // If in active multiplayer game, show disconnect notification
+    if (mode === 'multiplayer' && game) {
+      store.setState({
+        notification: { message: '接続が切断されました。相手の動きは受け付けません', timestamp: Date.now() },
+        multiplayerLeft: true,
+      });
+    } else if (mode === 'multiplayer' && !game) {
+      // Was in lobby or waiting - just return to menu
+      store.getState().resetMultiplayerState();
+      store.setState({ mode: 'menu', showMenu: true });
+    }
+  }, [mode, game]);
 
   const handleReconnect = useCallback(() => {
     console.log('[App] Socket reconnected');
@@ -118,6 +139,7 @@ function App() {
       onGameStart: handleGameStart,
       onOpponentMove: handleOpponentMove,
       onStonePlaced: handleStonePlaced,
+      onOpponentLeft: handleOpponentLeft,
       onGameEnd: handleGameEnd,
       onError: handleError,
     });
@@ -132,14 +154,14 @@ function App() {
       socket.off('disconnect', handleDisconnect);
       socket.off('reconnect', handleReconnect);
     };
-  }, [setSocketHandlers]);
+  }, [setSocketHandlers, handleDisconnect, handleGameEnd]);
 
   // Determine what to show:
   // - If in menu mode → Menu
-  // - If game exists (even if over) → GameBoard (to show result)
-  // - If waitingForOpponent but no game → Menu (showing waiting state)
-  // - If disconnected from game → Menu (showing disconnect message)
-  const shouldShowMenu = mode === 'menu' || (!game && (mode !== 'multiplayer' || store.getState().waitingForOpponent));
+  // - If waitingForOpponent → Menu (showing waiting state)
+  // - If multiplayerLeft AND game exists → GameBoard (with disconnect banner)
+  // - Otherwise (game exists or in AI mode) → GameBoard
+  const shouldShowMenu = (mode === 'menu' || waitingForOpponent) && !game;
 
   if (shouldShowMenu) {
     return <Menu />;

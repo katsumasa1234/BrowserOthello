@@ -22,9 +22,9 @@ export default function Menu() {
     setWaitingForOpponent,
     mode,
     roomId: storeRoomId,
+    resetMultiplayerState,
+    returnToMenu,
   } = useGameStore();
-
-  console.log('[Menu] Rendered - view:', view, 'storeRoomCode:', storeRoomCode, 'storeRoomId:', storeRoomId);
 
   const aiDifficulties = [
     { value: 'easy', label: '初級' },
@@ -40,50 +40,50 @@ export default function Menu() {
   }, [storePlayerName, playerName]);
 
   const handleCreateRoom = () => {
-    console.log('[Menu] → handleCreateRoom called, playerName:', playerName);
     if (!playerName.trim()) return;
-    // まず待機画面を表示（UX向上）
     setView('waiting-create');
     startMultiplayerCreate(playerName.trim());
   };
 
   const handleJoinRoom = () => {
-    console.log('[Menu] → handleJoinRoom called, roomCode:', roomCodeInput);
     if (!playerName.trim() || roomCodeInput.length !== 6) return;
-    // まず待機画面を表示
     setView('waiting-join');
     joinMultiplayer(roomCodeInput.toUpperCase(), playerName.trim());
   };
 
   const handleMatchmaking = () => {
-    console.log('[Menu] → handleMatchmaking called');
     if (!playerName.trim()) return;
-    // まず待機画面を表示
     setView('matchmaking');
     findOpponent(playerName.trim());
   };
 
   const handleBack = () => {
-    console.log('[Menu] → handleBack, clearing view');
+    // 待機画面から戻る場合はマルチプレイ状態をリセット
+    if (waitingForOpponent || storeRoomCode) {
+      useGameStore.getState().resetMultiplayerState();
+      setWaitingForOpponent(false);
+    }
     setView('main');
-    setWaitingForOpponent(false);
   };
 
-  // マッチング待ち状態の判定（表示用）
-  const isMatchmaking = waitingForOpponent || (mode === 'multiplayer' && !storeRoomCode && view !== 'main');
+  const handleHome = () => {
+    // メインメニューに戻る（マルチプレイ状態も完全にリセット）
+    returnToMenu();
+    setView('main');
+  };
 
   return (
     <div className="menu">
-      <h1 className="menu-title">🏁 ブラウザオセロ</h1>
+      <h1 className="menu-title">Othello</h1>
 
       {/* メインメニュー */}
       {view === 'main' && (
         <div className="menu-main">
           <button className="menu-btn" onClick={() => setView('ai')}>
-            🤖 AI対戦
+            AI対戦
           </button>
           <button className="menu-btn" onClick={() => setView('multiplayer-options')}>
-            👥 マルチプレイ
+            マルチプレイ
           </button>
         </div>
       )}
@@ -91,7 +91,7 @@ export default function Menu() {
       {/* AI対戦設定 */}
       {view === 'ai' && (
         <div className="menu-section">
-          <h2>🤖 AI対戦</h2>
+          <h2>AI対戦</h2>
 
           <div className="form-group">
             <label>難易度</label>
@@ -143,7 +143,7 @@ export default function Menu() {
       {/* マルチプレイオプション */}
       {view === 'multiplayer-options' && (
         <div className="menu-section">
-          <h2>👥 マルチプレイ</h2>
+          <h2>マルチプレイ</h2>
 
           <div className="form-group">
             <label>プレイヤー名</label>
@@ -158,25 +158,29 @@ export default function Menu() {
 
           <div className="menu-actions vertical">
             <button className="btn btn-primary" onClick={handleCreateRoom}>
-              🏠 ルームを作成する
+              ルームを作成する
             </button>
             <button
               className="btn btn-secondary"
               onClick={() => setView('multiplayer-join')}
             >
-              🔑 ルームに参加する
+              ルームに参加する
             </button>
             <button className="btn btn-matchmaking" onClick={handleMatchmaking}>
-              ⚡ ランダムマッチ
+              ランダムマッチ
             </button>
           </div>
+
+          <button className="btn-home" onClick={handleHome}>
+            ホームに戻る
+          </button>
         </div>
       )}
 
       {/* ルーム参加 */}
       {view === 'multiplayer-join' && (
         <div className="menu-section">
-          <h2>🔑 ルームに参加</h2>
+          <h2>ルームに参加</h2>
 
           <div className="form-group">
             <label>プレイヤー名</label>
@@ -218,61 +222,72 @@ export default function Menu() {
 
       {/* マッチング待ち / ルーム作成待ち */}
       {(view === 'waiting-create' || view === 'waiting-join' || view === 'matchmaking') && (
-        <div className="menu-section">
-          <h2>🔍 {playerJoined ? '相手が見つかりました！' : '接続中...'}</h2>
-
-          {/* デバッグ情報 */}
-          <div style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>
-            state: view={view} | storeRoomCode={storeRoomCode || '(null)'} | playerJoined={String(playerJoined)} | waitingForOpponent={String(waitingForOpponent)} | isHost={String(mode === 'multiplayer' && !storeRoomCode ? false : true)}
-          </div>
-
-          {view === 'waiting-create' && storeRoomCode && (
-            <div className="room-code-display">
-              <p>あなたのルームコード：</p>
-              <div className="code-box">
-                <span className="code-text">{storeRoomCode}</span>
-                <button
-                  className="copy-btn"
-                  onClick={() => {
-                    navigator.clipboard.writeText(storeRoomCode);
-                  }}
-                >
-                  📋 コピー
-                </button>
+        <div className="menu-section waiting-view">
+          {view === 'waiting-create' && storeRoomCode && playerJoined ? (
+            <>
+              <h2>相手が参加しました！</h2>
+              <div className="room-code-display">
+                <p>ルームコード</p>
+                <div className="code-box">
+                  <span className="code-text">{storeRoomCode}</span>
+                  <button
+                    className="copy-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText(storeRoomCode);
+                    }}
+                  >
+                    コピー
+                  </button>
+                </div>
               </div>
-              <p className="hint">このコードを相手に伝えてください</p>
-            </div>
-          )}
-
-          {view === 'waiting-create' && !storeRoomCode && (
-            <p>ルームを作成しています...</p>
-          )}
-
-          {view === 'waiting-join' && (
-            <p>相手が見つかるまでお待ちください...</p>
-          )}
-
-          {view === 'matchmaking' && (
-            <p>マッチ相手を探しています...</p>
-          )}
-
-          {/* Host start button: show when host, room code exists, and opponent has joined */}
-          {(storeRoomCode && playerJoined) && (
-            <button
-              className="btn btn-primary start-game-btn"
-              onClick={() => {
-                console.log('[Menu] → Start game clicked, roomCode:', storeRoomCode);
-                acceptGame(storeRoomCode);
-                setView('waiting-create');
-              }}
-            >
-              🎮 ゲーム開始する
-            </button>
-          )}
-
-          {/* Joining player: show waiting message */}
-          {mode === 'multiplayer' && !storeRoomCode && view !== 'matchmaking' && (
-            <p className="info-text">相手の準備が整い次第、ゲームが始まります</p>
+              <button
+                className="btn btn-primary start-game-btn"
+                onClick={() => {
+                  acceptGame(storeRoomCode);
+                }}
+              >
+                ゲーム開始する
+              </button>
+            </>
+          ) : view === 'waiting-create' && storeRoomCode ? (
+            <>
+              <h2>相手を迎えています</h2>
+              <div className="room-code-display">
+                <p>ルームコード</p>
+                <div className="code-box">
+                  <span className="code-text">{storeRoomCode}</span>
+                  <button
+                    className="copy-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText(storeRoomCode);
+                    }}
+                  >
+                    コピー
+                  </button>
+                </div>
+                <p className="hint">このコードを相手に伝えてください</p>
+              </div>
+            </>
+          ) : view === 'waiting-create' ? (
+            <>
+              <h2>ルームを作成中...</h2>
+              <p className="info-text">少しお待ちください</p>
+            </>
+          ) : view === 'waiting-join' && !storeRoomCode ? (
+            <>
+              <h2>部屋に参加しています</h2>
+              <p className="info-text">相手の準備を整えたら、ゲームが始まります</p>
+            </>
+          ) : view === 'matchmaking' ? (
+            <>
+              <h2>マッチ相手を探しています...</h2>
+              <p className="info-text">少しお待ちください</p>
+            </>
+          ) : (
+            <>
+              <h2>相手と接続しています</h2>
+              <p className="info-text">ゲームが始まるまでお待ちください</p>
+            </>
           )}
 
           <div className="spinner" />

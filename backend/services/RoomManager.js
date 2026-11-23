@@ -204,29 +204,11 @@ class RoomManager {
         const otherPlayer = Array.from(room.sockets.values())[0];
         
         if (otherPlayer) {
-          // Check if host left - remaining player wins
-          if (socket.id === room.hostId) {
-            this.io.to(otherPlayer.socket.id).emit('game-end', {
-              winner: otherPlayer.color,
-              winnerName: otherPlayer.name + ' (勝利：相手が離脱)',
-              scores: null,
-            });
-            this.rooms.delete(roomId);
-          } else {
-            // Player left, tell host they win
-            const hostEntry = room.sockets.get(room.hostId);
-            if (hostEntry) {
-              this.io.to(room.hostId).emit('game-end', {
-                winner: hostEntry.color,
-                winnerName: hostEntry.name + ' (勝利：相手が離脱)',
-                scores: null,
-              });
-              this.rooms.delete(roomId);
-            } else {
-              // Host also gone
-              this.rooms.delete(roomId);
-            }
-          }
+          // Notify the remaining player that the opponent left
+          this.io.to(otherPlayer.socket.id).emit('opponent-left', {
+            message: '相手がゲームから離脱しました',
+          });
+          // Leave the room open so the remaining player can see the result
         } else {
           this.rooms.delete(roomId);
         }
@@ -242,35 +224,20 @@ class RoomManager {
           e => e.socket.id !== socket.id
         );
 
-        if (socket.id === room.hostId && otherPlayers[0]) {
-          // Host disconnected, remaining player wins
-          this.io.to(otherPlayers[0].socket.id).emit('game-end', {
-            winner: otherPlayers[0].color,
-            winnerName: otherPlayers[0].name + ' (勝利：相手が切断)',
-            scores: null,
-            reason: 'host-disconnected',
+        if (otherPlayers[0]) {
+          // Notify the remaining player that the opponent disconnected
+          this.io.to(otherPlayers[0].socket.id).emit('opponent-left', {
+            message: '相手が接続を切断しました',
           });
-          this.rooms.delete(roomId);
-        } else if (otherPlayers[0] && socket.id !== room.hostId) {
-          // Player disconnected, host wins
+        } else if (room.status === 'waiting') {
+          // Only player in room disconnected while waiting
           const hostSocket = this.io.sockets.sockets.get(room.hostId);
-          if (hostSocket) {
-            const hostEntry = room.sockets.get(room.hostId);
-            if (hostEntry) {
-              this.io.to(room.hostId).emit('game-end', {
-                winner: hostEntry.color,
-                winnerName: hostEntry.name + ' (勝利：相手が切断)',
-                scores: null,
-                reason: 'opponent-disconnected',
-              });
-              this.rooms.delete(roomId);
-            } else {
-              // Host socket also gone — remove room
-              this.rooms.delete(roomId);
-            }
+          if (hostSocket && hostSocket.id !== socket.id) {
+            this.io.to(hostSocket.id).emit('error', { message: '相手が切断されました' });
           }
-        } else if (otherPlayers.length === 0) {
-          // Only player in room disconnected
+          this.rooms.delete(roomId);
+        } else {
+          // Only player in room disconnected during playing
           this.rooms.delete(roomId);
         }
 
