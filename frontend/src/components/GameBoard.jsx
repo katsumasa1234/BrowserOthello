@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import useGameStore from '../store/game.js';
 import './GameBoard.css';
 
@@ -12,6 +12,28 @@ export default function GameBoard() {
     multiplayerLeft, connected, disconnectFromGame
   } = useGameStore();
   const [hoverPos, setHoverPos] = useState(null);
+
+  // Track board changes for animation re-triggering
+  const prevBoardRef = useRef(game.board.map(row => [...row]));
+  const isNewCacheRef = useRef(null);
+
+  function isNewCell(row, col) {
+    if (isNewCacheRef.current === null) {
+      const prev = prevBoardRef.current;
+      const cur = game.board;
+      const cache = new Set();
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          if (prev[r][c] !== cur[r][c]) {
+            cache.add(`${r}-${c}`);
+          }
+        }
+      }
+      isNewCacheRef.current = cache;
+      prevBoardRef.current = game.board.map(row => [...row]);
+    }
+    return isNewCacheRef.current.has(`${row}-${col}`);
+  }
 
   if (!game) return null;
 
@@ -46,10 +68,17 @@ export default function GameBoard() {
     if (isLastMove) cellClass += ' last-move';
     if (isValidMove && isHover && !value) cellClass += ' hover-preview';
 
+    const hasStone = value === BLACK || value === WHITE;
+    const isNew = isNewCell(row, col);
+
+    // Inline animation style to re-trigger on new stone placement
+    const animStyle = hasStone && isNew ? { animation: 'placeStone 0.25s ease-out' } : undefined;
+
     return (
       <div
         key={`${row}-${col}`}
         className={cellClass}
+        style={animStyle}
         onClick={() => handleCellClick(row, col)}
         onMouseEnter={() => setHoverPos({ row, col })}
         onMouseLeave={() => setHoverPos(null)}
